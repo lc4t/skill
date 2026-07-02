@@ -16,12 +16,12 @@
 
 ## 发布状态
 
-| 分支 | 站点 | 说明 |
+| 分支 | 目标站点 | 说明 |
 |---|---|---|
-| `test` | `skill-test.sakanano.moe` | 测试站点 |
-| `main` | `skill.sakanano.moe` | 正式站点 |
+| `main` | `skill.sakanano.moe` | 正式站点，由 GitHub Actions 发布 |
+| `test` | 本地预览 | 草稿和测试分支，不触发 GitHub Pages 发布 |
 
-发布由 GitHub Actions（GitHub 自动化工作流）处理。
+发布由 GitHub Actions（GitHub 自动化工作流）处理。GitHub Pages 只以 `main` 分支为准；`test` 分支用于本地查看和修改验证。
 
 ## 目录结构
 

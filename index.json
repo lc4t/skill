@@ -7,7 +7,7 @@
     "updated_at": "2026-07-02",
     "homepage": "./index.html",
     "future_domain": "skill.sakanano.moe",
-    "branch_note": "test 分支发布到 skill-test.sakanano.moe"
+    "branch_note": "main 分支发布到 skill.sakanano.moe；test 分支仅用于本地预览"
   },
   "paths": {
     "skills_root": "./skills/",

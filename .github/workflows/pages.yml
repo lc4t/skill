@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - test
   workflow_dispatch:
 
 permissions:
@@ -19,6 +18,7 @@ concurrency:
 jobs:
   build:
     name: Build static site
+    if: github.ref_name == 'main'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -37,15 +37,6 @@ jobs:
           cp -R index.html index.json README.md CHANGELOG.md archive skills _site/
           cp .nojekyll _site/.nojekyll
 
-          if [[ "${GITHUB_REF_NAME}" == "main" ]]; then
-            echo "skill.sakanano.moe" > _site/CNAME
-          elif [[ "${GITHUB_REF_NAME}" == "test" ]]; then
-            echo "skill-test.sakanano.moe" > _site/CNAME
-          else
-            echo "Unsupported branch: ${GITHUB_REF_NAME}" >&2
-            exit 1
-          fi
-
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
@@ -54,6 +45,7 @@ jobs:
   deploy:
     name: Deploy to GitHub Pages
     needs: build
+    if: github.ref_name == 'main'
     runs-on: ubuntu-latest
     environment:
       name: github-pages
