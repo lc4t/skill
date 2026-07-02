@@ -1,0 +1,265 @@
+{
+  "id": "agents-init",
+  "name": "Project Manage v4 / AGENTS.md 初始化模板",
+  "description": "基于 AGENT.template.md v4.0 的项目生命周期治理模板，用于初始化 AGENTS.md、OPINION.md、AGENT.RULES.md、多 Agent 路由 stub 与 .agent-doc 过程文档。",
+  "schema_version": "1.0",
+  "version": "4.0.0",
+  "status": "stable",
+  "language": "zh-CN",
+  "license": "CC-BY-4.0",
+  "created_at": "2026-07-02",
+  "updated_at": "2026-07-02",
+  "authors": [
+    {
+      "name": "lc4t"
+    }
+  ],
+  "tags": [
+    "agents",
+    "project-manage",
+    "project-governance",
+    "agents-md",
+    "opinion",
+    "template",
+    "codex",
+    "claude-code",
+    "cursor"
+  ],
+  "template": {
+    "path": "./AGENT.template.md",
+    "version": "v4.0",
+    "title": "AGENT.template.md (v4)",
+    "applies_to": [
+      "代码开发",
+      "文档写作",
+      "数据分析",
+      "设计制作",
+      "日常工作流"
+    ],
+    "design_principle": "使用 AI 是在让渡选择权获取执行能力，本模板控制让渡边界。"
+  },
+  "entrypoints": {
+    "browser": "./index.html",
+    "agent": "./SKILL.md",
+    "metadata": "./skill.json",
+    "template": "./AGENT.template.md"
+  },
+  "files": [
+    {
+      "path": "./SKILL.md",
+      "role": "agent-entry",
+      "required": true,
+      "description": "AI Agent 读取的执行入口，负责触发判断、读取 AGENT.template.md，并按模板流程执行初始化、审计或状态检查。"
+    },
+    {
+      "path": "./AGENT.template.md",
+      "role": "governance-template",
+      "required": true,
+      "description": "v4.0 项目治理母版，包含 OPINION 体系、T1/T2 触发器、初始化问卷、产物模板、Issues 同步和 relearning 规则。"
+    },
+    {
+      "path": "./index.html",
+      "role": "browser-page",
+      "required": true,
+      "description": "浏览器可读页面。"
+    },
+    {
+      "path": "./skill.json",
+      "role": "metadata",
+      "required": true,
+      "description": "机器可读元数据，用于站点索引、自动发现、版本检查和安装前预检。"
+    }
+  ],
+  "v4_changes": [
+    "通用化 VCS 抽象，覆盖 github、gitlab、gongfeng、local",
+    "新增 OPINION 体系，分为 L1 通用、L2 过程、L3 产品三层",
+    "新增 T1 假设检查器与 T2 矛盾检测器",
+    "引入一次性问卷与自动推断字段",
+    "统一多 Agent 寻路，AGENTS.md 是唯一主执行文件，CLAUDE.md、AGENT.md、GEMINI.md 只做 stub"
+  ],
+  "commands": [
+    {
+      "id": "init",
+      "triggers": [
+        "请按 AGENT.template.md 初始化",
+        "初始化项目",
+        "生成 AGENTS.md"
+      ],
+      "description": "自动扫描项目结构，输出一次性问卷，生成治理文件草案，用户确认后写入。"
+    },
+    {
+      "id": "start",
+      "triggers": [
+        "请按 AGENTS.md 执行本次任务",
+        "开始工作"
+      ],
+      "description": "加载 AGENTS.md、OPINION.md、进度文档与遗留事项，进入日常执行状态。"
+    },
+    {
+      "id": "audit",
+      "triggers": [
+        "请按 AGENT.RULES.md 补全文档与验收",
+        "审计补全"
+      ],
+      "description": "检查治理文件完整性、T1/T2 覆盖、commit 前检查清单和验收项。"
+    },
+    {
+      "id": "status",
+      "triggers": [
+        "检查进度",
+        "项目状态"
+      ],
+      "description": "汇总 Git 状态、plan/progress 完成度与 chat-summary 三个固定区块。"
+    },
+    {
+      "id": "issues-sync",
+      "triggers": [
+        "issues-sync"
+      ],
+      "description": "按 issues-tracker 抽象层将 .agent-doc/plan.md 同步到 Issues 系统。"
+    },
+    {
+      "id": "milestone-done",
+      "triggers": [
+        "milestone-done"
+      ],
+      "description": "执行 Session 结束仪式，扫描待沉淀假设、未解决冲突与 OPINION 演化候选。"
+    },
+    {
+      "id": "opinion-update",
+      "triggers": [
+        "opinion-update",
+        "请按 OPINION.md 校准本次假设"
+      ],
+      "description": "主动修订 OPINION.md，处理用户察觉到的规则或偏好演化。"
+    },
+    {
+      "id": "relearning",
+      "triggers": [
+        "relearning"
+      ],
+      "description": "将项目经验沉淀到 .agent-doc/，必要时回写 AGENT.template.md。"
+    },
+    {
+      "id": "tf-feedback",
+      "triggers": [
+        "tf-feedback [描述]"
+      ],
+      "description": "处理 TestFlight 反馈，仅适用于 iOS 项目。"
+    }
+  ],
+  "governance_layers": [
+    {
+      "file": "AGENTS.md",
+      "role": "主执行层",
+      "description": "1 到 2 屏的日常执行规范，所有 Agent 实际读取的主入口。"
+    },
+    {
+      "file": "OPINION.md",
+      "role": "意识层",
+      "description": "记录 L1/L2/L3 信仰、审美、价值取向和协作边界。"
+    },
+    {
+      "file": "AGENT.RULES.md",
+      "role": "规则层",
+      "description": "完整治理规范，主要用于审计和补全。"
+    },
+    {
+      "file": "docs/",
+      "role": "项目文档层",
+      "description": "人类可读的 PRD、架构、决策和变更文档。"
+    },
+    {
+      "file": ".agent-doc/",
+      "role": "过程层",
+      "description": "Agent 追踪计划、进度、假设、冲突、经验和证据。"
+    },
+    {
+      "file": "CLAUDE.md / AGENT.md / GEMINI.md",
+      "role": "路由层",
+      "description": "多 Agent 入口 stub，只路由到 AGENTS.md 与 OPINION.md。"
+    }
+  ],
+  "runtime_gates": [
+    {
+      "id": "T1",
+      "name": "假设检查器",
+      "timing": "pre-action",
+      "description": "在产生交付物、修改文件、调用外部工具或做出选型前检查关键假设。"
+    },
+    {
+      "id": "T2",
+      "name": "矛盾检测器",
+      "timing": "user-input",
+      "description": "用户每次输入后，检查是否与 OPINION.md、plan.md 或 AGENT.RULES.md 冲突。"
+    }
+  ],
+  "inputs": [
+    "项目基础信息：名称、类型、核心链路、交付形式",
+    "VCS 与协作信息：vcs、issues-tracker、issues-cli 或 issues-mcp",
+    "Agent 协作偏好：agent-cli、agent-mode、opinion-strict-mode",
+    "技术栈与运行信息：语言、框架、包管理器、执行环境、测试方式",
+    "OPINION L3 六问：审美参考、技术偏好、速度质量取舍、决策确认边界、沟通风格、项目特定信仰",
+    "工具与钩子：初始化钩子、Issues 同步、项目类型扩展钩子"
+  ],
+  "outputs": [
+    {
+      "path": "AGENTS.md",
+      "required": true,
+      "description": "主执行文件，Codex 自动加载，所有 Agent 实际读取的执行规范。"
+    },
+    {
+      "path": "OPINION.md",
+      "required": true,
+      "description": "L1/L2/L3 信仰、审美、价值取向和协作边界。"
+    },
+    {
+      "path": "AGENT.RULES.md",
+      "required": true,
+      "description": "完整治理规范，用于审计和补全。"
+    },
+    {
+      "path": "CLAUDE.md",
+      "required": true,
+      "description": "Claude Code 入口 stub，路由到 AGENTS.md 与 OPINION.md。"
+    },
+    {
+      "path": "AGENT.md",
+      "required": false,
+      "description": "Cursor 等 Agent 入口 stub，按需生成。"
+    },
+    {
+      "path": "GEMINI.md",
+      "required": false,
+      "description": "Gemini CLI 入口 stub，按需生成。"
+    },
+    {
+      "path": "docs/",
+      "required": true,
+      "description": "项目文档目录。"
+    },
+    {
+      "path": ".agent-doc/",
+      "required": true,
+      "description": "过程文档目录，最小集包含 plan.md、progress.md、chat-summary.md。"
+    }
+  ],
+  "agent_doc_minimum": [
+    ".agent-doc/plan.md",
+    ".agent-doc/progress.md",
+    ".agent-doc/chat-summary.md"
+  ],
+  "compatibility": {
+    "codex": true,
+    "claude_code": true,
+    "cursor": true,
+    "gemini_cli": true,
+    "generic_ai_agent": true
+  },
+  "paths": {
+    "page": "./index.html",
+    "markdown": "./SKILL.md",
+    "metadata": "./skill.json",
+    "template": "./AGENT.template.md"
+  }
+}

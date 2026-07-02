@@ -1,0 +1,45 @@
+{
+  "site": {
+    "id": "sakanano-cloud-skills",
+    "name": "云端 Skills",
+    "description": "公开 skill 模板与可机器读取索引，用于浏览器、AI 与程序共同读取。",
+    "version": "0.1.2",
+    "updated_at": "2026-07-02",
+    "homepage": "./index.html",
+    "future_domain": "skill.sakanano.moe",
+    "branch_note": "test 分支发布到 skill-test.sakanano.moe"
+  },
+  "paths": {
+    "skills_root": "./skills/",
+    "archive_root": "./archive/",
+    "readme": "./README.md",
+    "changelog": "./CHANGELOG.md"
+  },
+  "skills": [
+    {
+      "id": "agents-init",
+      "name": "Project Manage v4 / AGENTS.md 初始化模板",
+      "description": "基于 AGENT.template.md v4.0 的项目生命周期治理模板，用于初始化 AGENTS.md、OPINION.md、AGENT.RULES.md、多 Agent 路由 stub 与 .agent-doc 过程文档。",
+      "version": "4.0.0",
+      "status": "stable",
+      "updated_at": "2026-07-02",
+      "tags": ["agents", "project-manage", "template", "project-governance", "opinion", "codex"],
+      "template": {
+        "path": "./skills/agents-init/AGENT.template.md",
+        "version": "v4.0"
+      },
+      "entrypoints": {
+        "browser": "./skills/agents-init/index.html",
+        "agent": "./skills/agents-init/SKILL.md",
+        "metadata": "./skills/agents-init/skill.json",
+        "template": "./skills/agents-init/AGENT.template.md"
+      },
+      "paths": {
+        "page": "./skills/agents-init/index.html",
+        "markdown": "./skills/agents-init/SKILL.md",
+        "metadata": "./skills/agents-init/skill.json",
+        "template": "./skills/agents-init/AGENT.template.md"
+      }
+    }
+  ]
+}

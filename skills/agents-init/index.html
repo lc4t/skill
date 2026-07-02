@@ -1,0 +1,357 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Project Manage v4 · 云端 Skills</title>
+  <meta name="description" content="基于 AGENT.template.md v4.0 的项目生命周期治理模板，用于初始化 AGENTS.md、OPINION.md、AGENT.RULES.md 与过程文档。">
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #171717;
+      --muted: #625f59;
+      --paper: #fbfaf6;
+      --panel: #ffffff;
+      --line: #d8d1c1;
+      --accent: #0f766e;
+      --accent-strong: #134e4a;
+      --soft: #edf7f5;
+      --warn: #f2c94c;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: var(--paper);
+      color: var(--ink);
+      font-family: "Avenir Next", "Gill Sans", "Noto Sans SC", sans-serif;
+      line-height: 1.7;
+    }
+
+    a {
+      color: var(--accent-strong);
+      text-underline-offset: 0.18em;
+    }
+
+    .wrap {
+      width: min(980px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 38px 0 64px;
+    }
+
+    nav {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      justify-content: space-between;
+      padding-bottom: 22px;
+      border-bottom: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .crumb {
+      font-weight: 700;
+    }
+
+    .links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      min-height: 34px;
+      padding: 6px 11px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #fff;
+      text-decoration: none;
+      font-weight: 700;
+    }
+
+    header {
+      padding: 42px 0 30px;
+    }
+
+    .eyebrow {
+      margin: 0 0 10px;
+      color: var(--accent-strong);
+      font-size: 13px;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 0;
+      font-family: Georgia, "Noto Serif SC", serif;
+      font-size: clamp(38px, 7vw, 78px);
+      line-height: 1;
+      letter-spacing: 0;
+    }
+
+    .lead {
+      max-width: 760px;
+      margin: 20px 0 0;
+      color: var(--muted);
+      font-size: 18px;
+    }
+
+    .meta {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+      margin: 26px 0 0;
+    }
+
+    .meta div {
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+    }
+
+    .meta strong,
+    .meta span {
+      display: block;
+    }
+
+    .meta strong {
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .meta span {
+      margin-top: 4px;
+      font-weight: 800;
+    }
+
+    main {
+      display: grid;
+      gap: 22px;
+    }
+
+    section {
+      padding: 24px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+    }
+
+    h2 {
+      margin: 0 0 12px;
+      font-size: 22px;
+      line-height: 1.25;
+    }
+
+    p,
+    ul,
+    ol {
+      margin: 0;
+      color: var(--muted);
+    }
+
+    ul,
+    ol {
+      padding-left: 20px;
+    }
+
+    li + li {
+      margin-top: 5px;
+    }
+
+    code {
+      padding: 0.1em 0.28em;
+      border-radius: 4px;
+      background: rgba(242, 201, 76, 0.25);
+      color: #24221e;
+      font-family: "SFMono-Regular", Consolas, monospace;
+      font-size: 0.92em;
+    }
+
+    .resource-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .resource {
+      display: block;
+      min-height: 94px;
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--soft);
+      text-decoration: none;
+    }
+
+    .resource strong,
+    .resource span {
+      display: block;
+    }
+
+    .resource strong {
+      color: var(--accent-strong);
+    }
+
+    .resource span {
+      margin-top: 6px;
+      color: var(--muted);
+      font-size: 14px;
+      font-weight: 400;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      overflow-wrap: anywhere;
+    }
+
+    th,
+    td {
+      padding: 10px;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      color: var(--accent-strong);
+      font-size: 14px;
+    }
+
+    footer {
+      margin-top: 26px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    @media (max-width: 760px) {
+      .meta,
+      .resource-grid {
+        grid-template-columns: 1fr;
+      }
+
+      section {
+        padding: 18px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <nav>
+      <a class="crumb" href="../../index.html">← 云端 Skills</a>
+      <div class="links">
+        <a class="pill" href="./SKILL.md">SKILL.md</a>
+        <a class="pill" href="./skill.json">skill.json</a>
+        <a class="pill" href="./AGENT.template.md">AGENT.template.md</a>
+      </div>
+    </nav>
+
+    <header>
+      <p class="eyebrow">Skill · agents-init</p>
+      <h1>Project Manage v4</h1>
+      <p class="lead">基于 <code>AGENT.template.md v4.0</code> 的项目生命周期治理模板，用于初始化 <code>AGENTS.md</code>、<code>OPINION.md</code>、<code>AGENT.RULES.md</code> 与过程文档。</p>
+      <div class="meta" aria-label="Skill 元数据">
+        <div><strong>版本</strong><span>4.0.0</span></div>
+        <div><strong>状态</strong><span>stable</span></div>
+        <div><strong>更新</strong><span>2026-07-02</span></div>
+        <div><strong>语言</strong><span>zh-CN</span></div>
+      </div>
+    </header>
+
+    <main>
+      <section>
+        <h2>资源入口</h2>
+        <div class="resource-grid">
+          <a class="resource" href="./SKILL.md">
+            <strong>AI 原文</strong>
+            <span>执行入口与初始化流程，适合 Agent 直接读取。</span>
+          </a>
+          <a class="resource" href="./skill.json">
+            <strong>机器元数据</strong>
+            <span>版本、路径、标签、输入输出等结构化信息。</span>
+          </a>
+          <a class="resource" href="./AGENT.template.md">
+            <strong>模板文件</strong>
+            <span>初始化时读取的完整治理模板与知识库。</span>
+          </a>
+        </div>
+      </section>
+
+      <section>
+        <h2>文件分工</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>文件</th>
+              <th>作用</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td><code>SKILL.md</code></td><td>AI Agent 的执行入口，说明触发方式、流程和必读文件。</td></tr>
+            <tr><td><code>AGENT.template.md</code></td><td>完整治理模板，项目初始化时作为母版读取。</td></tr>
+            <tr><td><code>skill.json</code></td><td>机器可读元数据，用于索引、安装、版本检查和自动发现。</td></tr>
+            <tr><td><code>index.html</code></td><td>浏览器可读页面。</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2>适用场景</h2>
+        <ul>
+          <li>新仓库需要建立 AI 协作规则。</li>
+          <li>旧仓库需要把零散口头约定沉淀为可执行规范。</li>
+          <li>多个 Agent、编辑器或自动化工具需要共享同一份项目上下文。</li>
+          <li>团队希望减少重复说明、风格漂移和错误假设。</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>输入信息</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>字段</th>
+              <th>必填</th>
+              <th>说明</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>项目名称</td><td>是</td><td>仓库或产品的名称。</td></tr>
+            <tr><td>项目目标</td><td>是</td><td>一句话说明项目要解决的问题。</td></tr>
+            <tr><td>技术栈</td><td>是</td><td>语言、框架、包管理器、数据库、部署方式。</td></tr>
+            <tr><td>运行方式</td><td>是</td><td>本地启动、测试、构建、部署命令。</td></tr>
+            <tr><td>协作偏好</td><td>是</td><td>语言、输出结构、是否先问再写代码。</td></tr>
+            <tr><td>质量门禁</td><td>是</td><td>测试、Lint、格式化、审查规则。</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2>标准流程</h2>
+        <ol>
+          <li>扫描项目结构、配置文件、脚本和现有文档。</li>
+          <li>区分已确认事实、合理推断和待确认假设。</li>
+          <li>只对影响执行质量的问题提问。</li>
+          <li>生成结构完整的 <code>AGENTS.md</code> 草案。</li>
+          <li>确认项目目标、协作偏好、质量门禁和禁止事项。</li>
+          <li>写入仓库根目录并用一次小任务验证可用性。</li>
+        </ol>
+      </section>
+    </main>
+
+    <footer>
+      <span>路径：skills/agents-init/ · License: CC-BY-4.0</span>
+    </footer>
+  </div>
+</body>
+</html>
