@@ -2,6 +2,11 @@
 
 ## 2026-08-13
 
+### 5.2.2
+
+- 首页移除正式域名与 Git 分支等发布运维信息，只保留 Plugin 版本和更新时间。
+- 修复 GitHub Pages 部署清单，公开 `llms.txt`、`INSTALL.md`、Plugin manifest、runtime 与统一安装脚本。
+
 ### 5.2.1
 
 - 新增 `llms.txt`、`INSTALL.md` 与 `bootstrap_and_init.py`，支持用户用一句自然语言请求触发完整 Plugin 安装与项目初始化。
