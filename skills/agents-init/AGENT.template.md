@@ -45,7 +45,7 @@ Generate `.agents/moe.sakanano.project-runtime/project.json`:
 
 ```json
 {
-  "$schema": "https://example.invalid/agents-init/v5/project.schema.json",
+  "$schema": "https://skill.sakanano.moe/skills/agents-init/project.schema.json",
   "schema_version": "1.0",
   "initializer_version": "5.0.0",
   "name": "PROJECT_NAME",
@@ -86,7 +86,7 @@ Generate `.agents/moe.sakanano.project-runtime/project.json`:
 }
 ```
 
-`$schema` is a placeholder until a public schema is published; tools must validate Project Profile `schema_version` independently from `initializer_version`. Use JSON arrays for multi-valued fields. Missing integrations are `null` or empty arrays; do not invent commands.
+`$schema` is the public Project Profile contract. Tools must validate `schema_version` independently from `initializer_version`. Use JSON arrays for multi-valued fields. Missing integrations are `null` or empty arrays; do not invent commands.
 
 ## 4. AGENTS.md template
 

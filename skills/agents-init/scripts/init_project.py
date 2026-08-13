@@ -48,7 +48,7 @@ def json_text(value: object) -> str:
 
 def files_for(inputs: Inputs) -> dict[Path, str]:
     profile = {
-        "$schema": "https://example.invalid/agents-init/v5/project.schema.json",
+        "$schema": "https://skill.sakanano.moe/skills/agents-init/project.schema.json",
         "schema_version": "1.0",
         "initializer_version": "5.0.0",
         "name": inputs.name,

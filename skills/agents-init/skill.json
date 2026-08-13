@@ -28,6 +28,7 @@
     {"path": "./SKILL.md", "role": "agent-entry", "required": true},
     {"path": "./AGENT.template.md", "role": "skeleton-contract", "required": true},
     {"path": "./scripts/init_project.py", "role": "deterministic-initializer", "required": true},
+    {"path": "./project.schema.json", "role": "project-profile-schema", "required": true},
     {"path": "./index.html", "role": "browser-page", "required": true},
     {"path": "./skill.json", "role": "metadata", "required": true}
   ],

@@ -49,6 +49,7 @@ class InitProjectTests(unittest.TestCase):
             profile = json.loads((root / ".agents/moe.sakanano.project-runtime/project.json").read_text())
             self.assertEqual(profile["schema_version"], "1.0")
             self.assertEqual(profile["initializer_version"], "5.0.0")
+            self.assertEqual(profile["$schema"], "https://skill.sakanano.moe/skills/agents-init/project.schema.json")
             self.assertEqual(profile["runtime"]["skill"], "project-runtime")
             self.assertIsNone(profile["opinion"]["provider"])
             self.assertTrue((root / "docs/drafts/.gitkeep").exists())

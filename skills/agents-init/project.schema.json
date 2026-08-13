@@ -1,0 +1,88 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://skill.sakanano.moe/skills/agents-init/project.schema.json",
+  "title": "agents-init Project Profile",
+  "description": "Portable project discovery contract consumed by project-runtime.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "name", "profile", "runtime", "opinion", "capabilities", "work", "privacy"],
+  "properties": {
+    "$schema": {"type": "string", "format": "uri-reference"},
+    "schema_version": {"const": "1.0"},
+    "initializer_version": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"},
+    "name": {"type": "string", "minLength": 1},
+    "profile": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["project_type", "vcs", "stack", "runtime", "agent_cli"],
+      "properties": {
+        "project_type": {"$ref": "#/$defs/stringArray"},
+        "vcs": {"type": "string", "minLength": 1},
+        "stack": {"$ref": "#/$defs/stringArray"},
+        "runtime": {"type": "string", "minLength": 1},
+        "agent_cli": {"$ref": "#/$defs/stringArray"}
+      }
+    },
+    "runtime": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["skill", "required", "commit_policy", "push_policy"],
+      "properties": {
+        "skill": {"const": "project-runtime"},
+        "required": {"type": "boolean"},
+        "commit_policy": {"enum": ["explicit", "project-policy"]},
+        "push_policy": {"enum": ["explicit", "project-policy"]}
+      }
+    },
+    "opinion": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["provider", "project_overlay", "strict_mode"],
+      "properties": {
+        "provider": {"type": ["string", "null"]},
+        "project_overlay": {"type": ["string", "null"]},
+        "strict_mode": {"enum": ["smart", "strict", "disabled"]}
+      }
+    },
+    "capabilities": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["plugin_roots", "plugin_dirs", "skill_roots", "mcp_sources", "destination_skill_root", "destination_mcp"],
+      "properties": {
+        "plugin_roots": {"$ref": "#/$defs/pathArray"},
+        "plugin_dirs": {"$ref": "#/$defs/pathArray"},
+        "skill_roots": {"$ref": "#/$defs/pathArray"},
+        "mcp_sources": {"$ref": "#/$defs/pathArray"},
+        "destination_skill_root": {"$ref": "#/$defs/relativePath"},
+        "destination_mcp": {"$ref": "#/$defs/relativePath"}
+      }
+    },
+    "work": {"type": "object", "additionalProperties": true},
+    "privacy": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["forbidden_default_reads", "generated_outputs"],
+      "properties": {
+        "forbidden_default_reads": {"$ref": "#/$defs/pathArray"},
+        "generated_outputs": {"$ref": "#/$defs/pathArray"}
+      }
+    }
+  },
+  "$defs": {
+    "stringArray": {
+      "type": "array",
+      "items": {"type": "string", "minLength": 1},
+      "uniqueItems": true
+    },
+    "relativePath": {
+      "type": "string",
+      "minLength": 1,
+      "not": {"pattern": "^(?:/|~|[A-Za-z]:[\\\\/])"}
+    },
+    "pathArray": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/relativePath"},
+      "uniqueItems": true
+    }
+  }
+}

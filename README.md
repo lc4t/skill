@@ -38,6 +38,7 @@
 │  └─ agents-init/
 │     ├─ SKILL.md
 │     ├─ skill.json
+│     ├─ project.schema.json
 │     ├─ index.html
 │     ├─ AGENT.template.md
 │     └─ scripts/
@@ -62,6 +63,7 @@
 | `index.html` | 浏览器可读页面 |
 | `AGENT.template.md` | agents-init v5 骨架契约与迁移说明 |
 | `scripts/init_project.py` | 默认 dry-run、无覆盖的确定性初始化器 |
+| `project.schema.json` | Project Profile 的公开 JSON Schema |
 | `index.json` | 全站索引，汇总所有 skill 的入口与元数据 |
 
 公开模板不包含个人 `global.yml`、凭据、私有路径或私有 Skill 内容。生成的 `OPINION.md` 只含项目覆盖占位和私有 Opinion authority 配置指引。
