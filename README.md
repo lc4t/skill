@@ -2,7 +2,7 @@
 
 这是一个公开的 skill 仓库，用于存放可被浏览器、人类读者、AI Agent 和程序共同读取的模板型技能文件。
 
-仓库当前主要承载 **Project Manage v4 / AGENTS.md 初始化模板**：一套用于初始化项目治理文件的模板体系，核心文件是 `SKILL.md`、`AGENT.template.md` 和 `skill.json`。
+仓库当前主要承载 **agents-init v5 / Project Profile 初始化器**：只负责创建或迁移通用项目骨架。运行期项目管理由外部 `project-runtime` 负责，Opinion 作为独立能力提供指导和审查。
 
 ## 读取入口
 
@@ -11,7 +11,7 @@
 | 浏览器 | [`index.html`](index.html) | 查看站点首页和 skill 目录 |
 | 程序 | [`index.json`](index.json) | 读取全站机器索引 |
 | AI Agent | [`skills/agents-init/SKILL.md`](skills/agents-init/SKILL.md) | 读取 skill 执行入口 |
-| 模板消费者 | [`skills/agents-init/AGENT.template.md`](skills/agents-init/AGENT.template.md) | 读取 Project Manage v4 完整治理模板 |
+| 模板消费者 | [`skills/agents-init/AGENT.template.md`](skills/agents-init/AGENT.template.md) | 读取 agents-init v5 骨架契约与迁移规则 |
 | 元数据消费者 | [`skills/agents-init/skill.json`](skills/agents-init/skill.json) | 读取单个 skill 的机器元数据 |
 
 ## 发布状态
@@ -39,7 +39,10 @@
 │     ├─ SKILL.md
 │     ├─ skill.json
 │     ├─ index.html
-│     └─ AGENT.template.md
+│     ├─ AGENT.template.md
+│     └─ scripts/
+│        ├─ init_project.py
+│        └─ test_init_project.py
 └─ archive/
    └─ README.md
 ```
@@ -48,7 +51,7 @@
 
 | Skill | 版本 | 定位 | 浏览器入口 | AI 入口 | 元数据 |
 |---|---:|---|---|---|---|
-| `agents-init` | `4.0.0` | Project Manage v4 项目治理初始化模板，生成 `AGENTS.md`、`OPINION.md`、`AGENT.RULES.md` 等文件 | [`index.html`](skills/agents-init/index.html) | [`SKILL.md`](skills/agents-init/SKILL.md) | [`skill.json`](skills/agents-init/skill.json) |
+| `agents-init` | `5.0.0` | 初始化 Project Profile、Agent Plugins 占位与最小路由文件，不承载运行期管理或个人 Opinion | [`index.html`](skills/agents-init/index.html) | [`SKILL.md`](skills/agents-init/SKILL.md) | [`skill.json`](skills/agents-init/skill.json) |
 
 ## 文件约定
 
@@ -57,10 +60,11 @@
 | `SKILL.md` | AI Agent 的执行入口，描述触发条件、必读文件和执行流程 |
 | `skill.json` | 机器可读 manifest（清单文件），描述版本、路径、命令、产物和兼容性 |
 | `index.html` | 浏览器可读页面 |
-| `AGENT.template.md` | Project Manage v4 完整治理模板 |
+| `AGENT.template.md` | agents-init v5 骨架契约与迁移说明 |
+| `scripts/init_project.py` | 默认 dry-run、无覆盖的确定性初始化器 |
 | `index.json` | 全站索引，汇总所有 skill 的入口与元数据 |
 
-`assets/` 不是固定目录；只有图片、脚本、示例数据等资源较多时再创建。
+公开模板不包含个人 `global.yml`、凭据、私有路径或私有 Skill 内容。生成的 `OPINION.md` 只含项目覆盖占位和私有 Opinion authority 配置指引。
 
 ## 维护约定
 

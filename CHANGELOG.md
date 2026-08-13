@@ -1,5 +1,19 @@
 # 更新记录
 
+## 2026-08-13
+
+### Changed
+
+- 发布 `agents-init v5`，将职责收口为项目骨架初始化与版本迁移。
+- 运行期 Task/Case、进度、验证、Git 与 Skill/MCP 管理统一交给外部 `project-runtime`。
+- Opinion 保持独立指导/审查能力，公开模板不再内置个人或通用 Opinion 内容。
+- Project Profile 使用 `.agents/moe.sakanano.project-runtime/project.json`，便携能力采用 Agent Plugins 1.0 目录。
+
+### Added
+
+- 新增默认 dry-run、冲突不覆盖的 `scripts/init_project.py` 及单元测试。
+- 新增空的项目 Opinion 覆盖入口、Agent Plugin/MCP 占位及最小过程文档。
+
 ## 2026-07-02
 
 ### Changed
