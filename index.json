@@ -1,44 +1,44 @@
 {
   "site": {
     "id": "sakanano-cloud-skills",
-    "name": "云端 Skills",
-    "description": "公开 skill 模板与可机器读取索引，用于浏览器、AI 与程序共同读取。",
-    "version": "0.2.0",
+    "name": "Agents Init Plugin",
+    "description": "可安装的项目初始化与持续项目运行时。",
+    "version": "0.3.0",
     "updated_at": "2026-08-13",
     "homepage": "./index.html",
-    "future_domain": "skill.sakanano.moe",
-    "branch_note": "main 分支发布到 skill.sakanano.moe；test 分支仅用于本地预览"
+    "future_domain": "skill.sakanano.moe"
   },
-  "paths": {
-    "skills_root": "./skills/",
-    "archive_root": "./archive/",
-    "readme": "./README.md",
-    "changelog": "./CHANGELOG.md"
+  "plugin": {
+    "manifest": "./plugin.json",
+    "mcp": "./mcp.json",
+    "version": "5.2.0",
+    "install_unit": "repository-root"
   },
   "skills": [
     {
       "id": "agents-init",
-      "name": "agents-init v5 / Project Profile 初始化器",
-      "description": "创建或迁移通用项目骨架与 Project Profile；运行期管理由 project-runtime 负责，Opinion 独立负责指导和审查。",
-      "version": "5.1.0",
+      "name": "agents-init v5.2 / Project Profile 初始化器",
+      "description": "创建或迁移项目骨架；写入前验证同包 project-runtime。",
+      "version": "5.2.0",
       "status": "stable",
-      "updated_at": "2026-08-13",
-      "tags": ["agents", "project-init", "project-profile", "agent-plugins", "codex"],
-      "template": {
-        "path": "./skills/agents-init/AGENT.template.md",
-        "version": "v5.1"
-      },
       "entrypoints": {
         "browser": "./skills/agents-init/index.html",
         "agent": "./skills/agents-init/SKILL.md",
         "metadata": "./skills/agents-init/skill.json",
         "template": "./skills/agents-init/AGENT.template.md"
-      },
-      "paths": {
-        "page": "./skills/agents-init/index.html",
-        "markdown": "./skills/agents-init/SKILL.md",
-        "metadata": "./skills/agents-init/skill.json",
-        "template": "./skills/agents-init/AGENT.template.md"
+      }
+    },
+    {
+      "id": "project-runtime",
+      "name": "project-runtime / 项目运行时",
+      "description": "按项目契约统一编排生命周期与 Agent 能力。",
+      "version": "1.3.3",
+      "status": "stable",
+      "entrypoints": {
+        "browser": "./skills/project-runtime/index.html",
+        "agent": "./skills/project-runtime/SKILL.md",
+        "metadata": "./skills/project-runtime/skill.json",
+        "reference": "./skills/project-runtime/references/capability-config.md"
       }
     }
   ]

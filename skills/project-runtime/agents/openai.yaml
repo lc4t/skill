@@ -1,0 +1,4 @@
+interface:
+  display_name: "Project Runtime"
+  short_description: "编排项目任务及 Agent Plugin、Skill、MCP"
+  default_prompt: "使用 $project-runtime 读取当前项目契约，并以满足请求所需的最小生命周期推进工作。"

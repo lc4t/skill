@@ -3,7 +3,7 @@
   "name": "agents-init v5 / Project Profile 初始化器",
   "description": "创建或迁移通用项目骨架与 Project Profile；运行期项目管理交给 project-runtime，Opinion 独立负责指导和审查。",
   "schema_version": "1.0",
-  "version": "5.1.0",
+  "version": "5.2.0",
   "status": "stable",
   "language": "zh-CN",
   "license": "CC-BY-4.0",
@@ -13,8 +13,8 @@
   "tags": ["agents", "project-init", "project-profile", "agent-plugins", "codex", "claude-code", "cursor"],
   "template": {
     "path": "./AGENT.template.md",
-    "version": "v5.1",
-    "title": "AGENT.template.md v5.1",
+    "version": "v5.2",
+    "title": "AGENT.template.md v5.2",
     "design_principle": "初始化、运行期项目管理、Opinion 审查与领域交付职责分离。"
   },
   "entrypoints": {
@@ -62,6 +62,11 @@
   },
   "compatibility": {
     "agent_plugins": "1.0.0",
-    "project_runtime": "required after initialization"
+    "project_runtime": "bundled in the same plugin"
+  },
+  "distribution": {
+    "plugin_manifest": "../../plugin.json",
+    "runtime_skill": "../project-runtime/SKILL.md",
+    "install_unit": "repository-root"
   }
 }

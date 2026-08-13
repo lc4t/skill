@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>agents-init v5 · 云端 Skills</title>
-  <meta name="description" content="创建或迁移通用项目骨架与 Project Profile；运行期项目管理和 Opinion 审查保持独立。">
+  <title>agents-init v5.2 · 云端 Skills</title>
+  <meta name="description" content="创建或迁移通用项目骨架与 Project Profile；同包 project-runtime 管理运行期。">
   <style>
     :root {
       color-scheme: light;
@@ -258,10 +258,10 @@
 
     <header>
       <p class="eyebrow">Skill · agents-init</p>
-      <h1>agents-init v5</h1>
-      <p class="lead">创建或迁移通用项目骨架、Project Profile 与 Agent Plugins 1.0 占位；<code>project-runtime</code> 负责运行期管理，Opinion 独立负责指导和审查。</p>
+      <h1>agents-init v5.2</h1>
+      <p class="lead">创建或迁移通用项目骨架与 Project Profile；写入前验证同一 Plugin 内的 <code>project-runtime</code>，Opinion 独立负责指导和审查。</p>
       <div class="meta" aria-label="Skill 元数据">
-        <div><strong>版本</strong><span>5.1.0</span></div>
+        <div><strong>版本</strong><span>5.2.0</span></div>
         <div><strong>状态</strong><span>stable</span></div>
         <div><strong>更新</strong><span>2026-08-13</span></div>
         <div><strong>语言</strong><span>zh-CN</span></div>
@@ -343,7 +343,7 @@
           <li>预览 v5 文件计划和所有路径冲突。</li>
           <li>确认后运行无覆盖初始化器。</li>
           <li>解析 JSON 并检查 Agent 路由一致性。</li>
-          <li>由 project-runtime 后续导入或同步 Skill/MCP。</li>
+          <li>由同包 project-runtime 后续导入或同步 Skill/MCP。</li>
           <li>由独立 Opinion provider 管理用户规则与场景检查。</li>
         </ol>
       </section>

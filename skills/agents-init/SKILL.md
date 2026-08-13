@@ -20,14 +20,16 @@ description: 初始化仓库或将既有仓库迁移到 agents-init v5 项目骨
 
 ## 必读材料
 
-初始化或迁移项目前，完整读取 [AGENT.template.md](AGENT.template.md)。它是 v5 骨架契约与迁移指南。
+初始化或迁移项目前，完整读取 [AGENT.template.md](AGENT.template.md)。它是 v5.2 骨架契约、中文生成模板与迁移指南，也是初始化器生成 Markdown 的唯一权威源。
+
+本 Skill 必须从完整 `agents-init` Plugin 使用。开始前确认 Plugin 根目录同时存在 `plugin.json`、`skills/project-runtime/SKILL.md` 与 `runtime/project_runtime_config.py`。只下载 `skills/agents-init/` 子目录时停止初始化并报告 `runtime-required`，引导用户安装完整 Plugin；禁止生成一个无法执行的项目契约。
 
 ## 工作流程
 
 1. 检查仓库根目录、现有 Agent 入口文件、Git 状态、项目清单以及可能的构建/测试命令。
 2. 只推断有直接证据的字段；标记不确定值。只有缺失选择会实质改变生成契约时，才集中询问一次。
 3. 展示拟创建的文件计划与碰撞项。
-4. 用户确认后，使用 `--apply` 运行随附初始化器；脚本无法运行时，手工创建同一组文件。
+4. 初始化器先验证同包 `project-runtime`，用户确认后再使用 `--apply`；脚本无法运行时，严格按中文模板创建同一组文件，并再次确认 runtime 可用。
 5. 初始化模式下，任一碰撞都会阻止全部写入。保留所有既有文件；迁移模式只修改用户审阅差异后明确选择的文件。
 6. 解析生成的 JSON，检查入口文件路由，并报告剩余占位符。
 
@@ -94,4 +96,4 @@ docs/
 
 ## 完成报告
 
-报告已生成文件、推断出的 Profile 值及证据、保留的碰撞项、验证结果，以及下一步必须安装的 runtime。初始化或迁移完成后结束。
+报告完整 Plugin 与同包 runtime 的验证结果、已生成文件、推断出的 Profile 值及证据、保留的碰撞项和验证结果。初始化或迁移完成后结束。

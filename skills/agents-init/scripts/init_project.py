@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Create the agents-init v5 project skeleton without overwriting files."""
+"""使用 agents-init v5.2 中文模板安全创建项目骨架。"""
 
 from __future__ import annotations
 
@@ -14,8 +14,33 @@ from pathlib import Path
 from typing import Iterable
 
 
+INITIALIZER_VERSION = "5.2.0"
+PLUGIN_ROOT = Path(__file__).resolve().parents[3]
+TEMPLATE_PATH = Path(__file__).resolve().parents[1] / "AGENT.template.md"
+TEMPLATE_PATTERN = re.compile(
+    r"<!-- agents-init:template (?P<name>[^ ]+) -->\n"
+    r"```markdown\n(?P<body>.*?)```\n"
+    r"<!-- /agents-init:template -->",
+    re.DOTALL,
+)
+REQUIRED_TEMPLATES = {
+    "AGENTS.md",
+    "AGENT.RULES.md",
+    "OPINION.md",
+    "ROUTE.md",
+    ".agent-doc/plan.md",
+    ".agent-doc/progress.md",
+    ".agent-doc/chat-summary.md",
+    "docs/refs/README.md",
+}
+
+
 class InitError(Exception):
     """Expected initialization failure."""
+
+    def __init__(self, message: str, *, code: str = "invalid-request") -> None:
+        super().__init__(message)
+        self.code = code
 
 
 @dataclass(frozen=True)
@@ -48,11 +73,75 @@ def json_text(value: object) -> str:
     return json.dumps(value, ensure_ascii=False, indent=2) + "\n"
 
 
-def files_for(inputs: Inputs) -> dict[Path, str]:
+def load_templates(path: Path = TEMPLATE_PATH) -> dict[str, str]:
+    try:
+        source = path.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError) as exc:
+        raise InitError(f"无法读取中文模板：{path}", code="template-invalid") from exc
+    templates = {match.group("name"): match.group("body") for match in TEMPLATE_PATTERN.finditer(source)}
+    missing = sorted(REQUIRED_TEMPLATES - set(templates))
+    if missing:
+        raise InitError("中文模板缺少生成区块：" + ", ".join(missing), code="template-invalid")
+    return templates
+
+
+def render_template(template: str, replacements: dict[str, str]) -> str:
+    rendered = template
+    for token, value in replacements.items():
+        rendered = rendered.replace(token, value)
+    return rendered
+
+
+def validate_runtime(plugin_root: Path) -> dict[str, str | bool]:
+    root = plugin_root.expanduser().resolve()
+    required = (
+        Path("plugin.json"),
+        Path("runtime/project_runtime_config.py"),
+        Path("runtime/mcp_server.py"),
+        Path("skills/project-runtime/SKILL.md"),
+    )
+    missing: list[str] = []
+    for relative in required:
+        candidate = root / relative
+        try:
+            metadata = candidate.lstat()
+        except FileNotFoundError:
+            missing.append(str(relative))
+            continue
+        if stat.S_ISLNK(metadata.st_mode) or not stat.S_ISREG(metadata.st_mode):
+            missing.append(str(relative))
+    if missing:
+        raise InitError(
+            "缺少必需的同包 project-runtime 文件：" + ", ".join(missing),
+            code="runtime-required",
+        )
+    try:
+        manifest = json.loads((root / "plugin.json").read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise InitError("Plugin manifest 无法解析", code="runtime-required") from exc
+    if manifest.get("name") != "agents-init":
+        raise InitError("Plugin manifest 必须声明 name=agents-init", code="runtime-required")
+    return {
+        "available": True,
+        "source": "bundled" if root == PLUGIN_ROOT.resolve() else "external",
+        "plugin": "agents-init",
+    }
+
+
+def validate_inline(label: str, value: str) -> str:
+    if not value.strip():
+        raise InitError(f"{label} 不能为空")
+    if len(value) > 512 or any(ord(character) < 32 for character in value):
+        raise InitError(f"{label} 只能包含单行可打印文本")
+    return value.strip()
+
+
+def files_for(inputs: Inputs, templates: dict[str, str] | None = None) -> dict[Path, str]:
+    templates = templates or load_templates()
     profile = {
         "$schema": "https://skill.sakanano.moe/skills/agents-init/project.schema.json",
         "schema_version": "1.0",
-        "initializer_version": "5.1.0",
+        "initializer_version": INITIALIZER_VERSION,
         "name": inputs.name,
         "profile": {
             "project_type": list(inputs.project_type),
@@ -63,6 +152,8 @@ def files_for(inputs: Inputs) -> dict[Path, str]:
         },
         "runtime": {
             "skill": "project-runtime",
+            "plugin": "agents-init",
+            "distribution": "bundled",
             "required": True,
             "commit_policy": "explicit",
             "push_policy": "explicit",
@@ -86,80 +177,28 @@ def files_for(inputs: Inputs) -> dict[Path, str]:
         "work": {"task": None, "case": None},
         "privacy": {"forbidden_default_reads": [], "generated_outputs": []},
     }
-    agents = f"""# {inputs.name} — Agent execution entry
-
-## Project Profile
-
-- Type: {', '.join(inputs.project_type)}
-- VCS: {inputs.vcs}
-- Stack: {', '.join(inputs.stack)}
-- Runtime: {inputs.runtime}
-- Agent clients: {', '.join(inputs.agent_cli)}
-
-Machine-readable authority: `.agents/moe.sakanano.project-runtime/project.json`.
-
-## Session entry
-
-1. Load `project-runtime` as the only project-management Skill.
-2. Let it read the Project Profile, current Git state, and only the entry files required by the current task.
-3. Use domain Skills for concrete artifacts and deterministic Tools for state changes.
-4. If an Opinion provider is configured, request guidance before implementation and a check before delivery.
-
-## Boundaries
-
-- `agents-init` only creates or migrates this skeleton.
-- `project-runtime` owns Task/Case selection, file placement, progress, validation orchestration, capability management, and Git handoff.
-- Opinion guides and reviews deliverables; it does not manage project lifecycle.
-- Domain Skills do not create unrelated Tasks, edit root progress, self-modify, or commit autonomously.
-- Preserve unrelated changes. Push, publish, merge, delete, and destructive migration require explicit approval.
-
-## Project-specific entry points
-
-- Commands: TODO
-- Tests: TODO
-- Build: TODO
-- Architecture/docs: TODO
-- Privacy or forbidden paths: none declared
-"""
-    route = """# Agent route
-
-Read `AGENTS.md` and follow its Project Profile. Load `project-runtime` for project management. Load the configured Opinion provider independently for guidance and review.
-"""
+    replacements = {
+        "PROJECT_NAME": inputs.name,
+        "PROJECT_SLUG": inputs.slug,
+        "PROJECT_TYPE": ", ".join(inputs.project_type),
+        "VCS": inputs.vcs,
+        "STACK": ", ".join(inputs.stack),
+        "RUNTIME": inputs.runtime,
+        "AGENT_CLI": ", ".join(inputs.agent_cli),
+    }
+    agents = render_template(templates["AGENTS.md"], replacements)
+    route = render_template(templates["ROUTE.md"], replacements)
     return {
         Path("AGENTS.md"): agents,
-        Path("AGENT.RULES.md"): """# Project-specific rules
-
-This file contains only durable constraints unique to this repository. The `project-runtime` Skill owns the generic lifecycle.
-
-## Commands and validation
-
-- Setup: TODO
-- Test: TODO
-- Build: TODO
-
-## File placement and generated outputs
-
-- Source authority: TODO
-- Generated outputs: TODO
-
-## Privacy and external systems
-
-- Forbidden default reads: none declared
-- External writes requiring approval: all, unless explicitly configured
-""",
-        Path("OPINION.md"): """# Project Opinion overlay
-
-No project-specific Opinion rules have been confirmed.
-
-Personal global and scenario rules belong to the user's private Opinion authority. Configure its provider in `.agents/moe.sakanano.project-runtime/project.json`; do not copy those rules into a public project template.
-""",
+        Path("AGENT.RULES.md"): render_template(templates["AGENT.RULES.md"], replacements),
+        Path("OPINION.md"): render_template(templates["OPINION.md"], replacements),
         Path("CLAUDE.md"): route,
         Path("AGENT.md"): route,
         Path(".agents/plugin.json"): json_text({
             "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
             "name": inputs.slug,
             "version": "0.1.0",
-            "description": "Project-local portable Agent capabilities.",
+            "description": "项目本地的可移植 Agent 能力包。",
         }),
         Path(".agents/mcp.json"): json_text({
             "$schema": "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
@@ -167,23 +206,10 @@ Personal global and scenario rules belong to the user's private Opinion authorit
         }),
         Path(".agents/moe.sakanano.project-runtime/project.json"): json_text(profile),
         Path(".agents/skills/.gitkeep"): "",
-        Path(".agent-doc/plan.md"): "# Plan\n\nNo active multi-step plan.\n",
-        Path(".agent-doc/progress.md"): "# Progress\n\nNo active Task or Case. Project work state is managed by `project-runtime` using the configured project subsystem.\n",
-        Path(".agent-doc/chat-summary.md"): """# Chat summary
-
-## Pending assumptions
-
-None.
-
-## Unresolved conflicts
-
-None.
-
-## Opinion evolution candidates
-
-None. Submit candidates through the configured Opinion provider; do not promote them here.
-""",
-        Path("docs/refs/README.md"): "# References\n\nPlace durable task references here when the project contract requires them.\n",
+        Path(".agent-doc/plan.md"): render_template(templates[".agent-doc/plan.md"], replacements),
+        Path(".agent-doc/progress.md"): render_template(templates[".agent-doc/progress.md"], replacements),
+        Path(".agent-doc/chat-summary.md"): render_template(templates[".agent-doc/chat-summary.md"], replacements),
+        Path("docs/refs/README.md"): render_template(templates["docs/refs/README.md"], replacements),
         Path("docs/drafts/.gitkeep"): "",
     }
 
@@ -391,6 +417,12 @@ def parser() -> argparse.ArgumentParser:
     result.add_argument("--mode", choices=("init", "migrate"), default="init")
     result.add_argument("--replace", action="append", default=[], help="known skeleton path to replace in migrate mode")
     result.add_argument("--recovery-dir", type=Path, help="outside-project backup directory required for replacements")
+    result.add_argument(
+        "--runtime-plugin-root",
+        type=Path,
+        default=PLUGIN_ROOT,
+        help="包含 agents-init 与 project-runtime 的完整 Plugin 根目录",
+    )
     result.add_argument("--apply", action="store_true", help="create the complete skeleton only when no collision exists")
     result.add_argument("--output", choices=("text", "json"), default="text")
     return result
@@ -400,12 +432,20 @@ def main(argv: list[str] | None = None) -> int:
     args = parser().parse_args(argv)
     try:
         root = validate_root(args.project)
+        runtime_status = validate_runtime(args.runtime_plugin_root)
         slug = args.slug or slugify(args.name)
         if not re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", slug):
             raise InitError("--slug must be lowercase ASCII kebab-case")
-        inputs = Inputs(root, args.name.strip(), slug, args.project_type, args.vcs, args.stack, args.runtime, args.agent_cli)
-        if not inputs.name:
-            raise InitError("--name must not be empty")
+        inputs = Inputs(
+            root,
+            validate_inline("--name", args.name),
+            slug,
+            tuple(validate_inline("--project-type", value) for value in args.project_type),
+            validate_inline("--vcs", args.vcs),
+            tuple(validate_inline("--stack", value) for value in args.stack),
+            validate_inline("--runtime", args.runtime),
+            tuple(validate_inline("--agent-cli", value) for value in args.agent_cli),
+        )
         files = files_for(inputs)
         create, collisions = plan_writes(root, files)
         requested_replace = {Path(value) for value in args.replace}
@@ -436,6 +476,7 @@ def main(argv: list[str] | None = None) -> int:
             "create": [str(path) for path in create],
             "replace": [str(path) for path in replace],
             "preserved_collisions": [str(path) for path in preserved],
+            "runtime": runtime_status,
         }
         if args.output == "json":
             print(json_text(result), end="")
@@ -451,7 +492,7 @@ def main(argv: list[str] | None = None) -> int:
         return 0 if ok else 1
     except InitError as error:
         if args.output == "json":
-            print(json_text({"ok": False, "error": str(error)}), end="")
+            print(json_text({"ok": False, "code": error.code, "error": str(error)}), end="")
         else:
             print(f"error: {error}", file=sys.stderr)
         return 2

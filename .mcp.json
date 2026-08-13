@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "project-runtime": {
+      "command": "python3",
+      "args": ["runtime/mcp_server.py"],
+      "cwd": "."
+    }
+  }
+}

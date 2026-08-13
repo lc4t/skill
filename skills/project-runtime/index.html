@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>project-runtime · 云端 Skills</title>
+  <meta name="description" content="按项目契约编排 Task、Case、Skill、MCP、验证、进度与 Git 交接。">
+  <style>
+    body{margin:0;background:#fbfaf6;color:#171717;font:16px/1.75 system-ui,"Noto Sans SC",sans-serif}
+    main{width:min(820px,calc(100% - 32px));margin:0 auto;padding:48px 0}
+    a{color:#134e4a}h1{font-size:clamp(38px,8vw,70px);line-height:1.05;margin:28px 0 16px}
+    .card{margin-top:24px;padding:20px;border:1px solid #d8d1c1;border-radius:10px;background:#fff}
+    code{background:#f7e9ad;padding:.1em .3em;border-radius:4px}.links{display:flex;gap:12px;flex-wrap:wrap}
+  </style>
+</head>
+<body>
+  <main>
+    <a href="../../index.html">← 云端 Skills</a>
+    <h1>project-runtime</h1>
+    <p>项目初始化完成后的唯一项目管理 Skill。它读取 Project Profile，选择 Task/Case，路由领域能力，管理 Agent Plugin、Skill 与 MCP，并完成验证、进度和受控 Git 交接。</p>
+    <section class="card">
+      <h2>职责边界</h2>
+      <p><code>agents-init</code> 负责初始化；<code>project-runtime</code> 负责持续项目管理；Opinion provider 独立负责指导与审查。</p>
+    </section>
+    <section class="card links">
+      <a href="./SKILL.md">SKILL.md</a>
+      <a href="./skill.json">skill.json</a>
+      <a href="./references/capability-config.md">能力配置参考</a>
+      <a href="../../plugin.json">Plugin manifest</a>
+    </section>
+  </main>
+</body>
+</html>

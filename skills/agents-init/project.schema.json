@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://skill.sakanano.moe/skills/agents-init/project.schema.json",
   "title": "agents-init Project Profile",
-  "description": "Portable project discovery contract consumed by project-runtime.",
+  "description": "由 project-runtime 消费的可移植项目发现契约。",
   "type": "object",
   "additionalProperties": false,
   "required": ["schema_version", "name", "profile", "runtime", "opinion", "capabilities", "work", "privacy"],
@@ -26,9 +26,11 @@
     "runtime": {
       "type": "object",
       "additionalProperties": true,
-      "required": ["skill", "required", "commit_policy", "push_policy"],
+      "required": ["skill", "plugin", "distribution", "required", "commit_policy", "push_policy"],
       "properties": {
         "skill": {"const": "project-runtime"},
+        "plugin": {"const": "agents-init"},
+        "distribution": {"const": "bundled"},
         "required": {"type": "boolean"},
         "commit_policy": {"enum": ["explicit", "project-policy"]},
         "push_policy": {"enum": ["explicit", "project-policy"]}

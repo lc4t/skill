@@ -1,0 +1,24 @@
+{
+  "name": "agents-init",
+  "version": "5.2.0",
+  "description": "初始化 Agent 项目契约，并通过 project-runtime 持续管理项目能力与生命周期。",
+  "author": {
+    "name": "lc4t"
+  },
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "Agents Init",
+    "shortDescription": "初始化项目并提供持续项目运行时",
+    "longDescription": "用 agents-init 创建可移植项目契约，再由 project-runtime 统一管理 Task、Case、Skill、MCP、验证与 Git 交接。",
+    "developerName": "lc4t",
+    "category": "Developer Tools",
+    "capabilities": [
+      "project-initialization",
+      "project-lifecycle",
+      "agent-capability-management",
+      "mcp"
+    ],
+    "defaultPrompt": "使用 $agents-init 初始化项目；项目已初始化时使用 $project-runtime 读取项目契约并推进当前工作。"
+  }
+}

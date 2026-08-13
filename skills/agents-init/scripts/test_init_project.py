@@ -51,11 +51,48 @@ class InitProjectTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             profile = json.loads((root / ".agents/moe.sakanano.project-runtime/project.json").read_text())
             self.assertEqual(profile["schema_version"], "1.0")
-            self.assertEqual(profile["initializer_version"], "5.1.0")
+            self.assertEqual(profile["initializer_version"], "5.2.0")
             self.assertEqual(profile["$schema"], "https://skill.sakanano.moe/skills/agents-init/project.schema.json")
             self.assertEqual(profile["runtime"]["skill"], "project-runtime")
+            self.assertEqual(profile["runtime"]["plugin"], "agents-init")
+            self.assertEqual(profile["runtime"]["distribution"], "bundled")
             self.assertIsNone(profile["opinion"]["provider"])
             self.assertTrue((root / "docs/drafts/.gitkeep").exists())
+            payload = json.loads(result.stdout)
+            self.assertEqual(payload["runtime"]["source"], "bundled")
+            self.assertIn("# Example Project — Agent 执行入口", (root / "AGENTS.md").read_text())
+            self.assertIn("# 项目专属规则", (root / "AGENT.RULES.md").read_text())
+
+    def test_generated_markdown_uses_named_chinese_template_blocks(self) -> None:
+        templates = init_project.load_templates()
+        inputs = init_project.Inputs(
+            Path("."), "示例项目", "example", ("代码",), "github", ("python",), "本地", ("codex",)
+        )
+        files = init_project.files_for(inputs, templates)
+        self.assertEqual(files[Path("AGENTS.md")], init_project.render_template(
+            templates["AGENTS.md"],
+            {
+                "PROJECT_NAME": "示例项目",
+                "PROJECT_SLUG": "example",
+                "PROJECT_TYPE": "代码",
+                "VCS": "github",
+                "STACK": "python",
+                "RUNTIME": "本地",
+                "AGENT_CLI": "codex",
+            },
+        ))
+        self.assertEqual(files[Path("docs/refs/README.md")], templates["docs/refs/README.md"])
+
+    def test_missing_runtime_fails_before_any_project_write(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary, tempfile.TemporaryDirectory() as incomplete:
+            root = Path(temporary)
+            result = self.run_script(
+                root, "--runtime-plugin-root", incomplete, "--apply"
+            )
+            self.assertEqual(result.returncode, 2)
+            payload = json.loads(result.stdout)
+            self.assertEqual(payload["code"], "runtime-required")
+            self.assertEqual(list(root.iterdir()), [])
 
     def test_apply_collision_writes_nothing(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

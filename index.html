@@ -263,7 +263,7 @@
       <div>
         <p class="eyebrow">Sakanano Cloud Skills</p>
         <h1>云端 Skills</h1>
-        <p class="summary">公开 skill 模板与可机器读取索引。浏览器查看页面，AI 读取 <code>SKILL.md</code>，程序读取 <code>skill.json</code>，初始化类 skill 可再读取独立模板文件。</p>
+        <p class="summary">一个可安装的 Agent Plugin：用 <code>agents-init</code> 初始化项目，再由同包 <code>project-runtime</code> 持续管理项目生命周期与 Agent 能力。</p>
       </div>
       <span class="badge">main 分支：skill.sakanano.moe</span>
     </header>
@@ -274,8 +274,8 @@
         <div class="skill-list">
           <article class="skill-card">
             <div>
-              <h3>agents-init v5 / Project Profile 初始化器</h3>
-              <p>创建或迁移通用项目骨架、Project Profile 与 Agent Plugins 1.0 占位；<code>project-runtime</code> 管理运行期，Opinion 独立提供指导和审查。</p>
+              <h3>agents-init v5.2 / Project Profile 初始化器</h3>
+              <p>创建或迁移通用项目骨架，并在写入前验证同包 <code>project-runtime</code>；Opinion 独立提供指导和审查。</p>
             </div>
             <div class="file-map" aria-label="AGENTS.md 初始化模板文件入口">
               <a class="file-link" href="./skills/agents-init/SKILL.md">
@@ -296,6 +296,31 @@
               <a class="button secondary" href="./skills/agents-init/SKILL.md">Skill</a>
               <a class="button secondary" href="./skills/agents-init/AGENT.template.md">模板</a>
               <a class="button secondary" href="./skills/agents-init/skill.json">JSON</a>
+            </div>
+          </article>
+          <article class="skill-card">
+            <div>
+              <h3>project-runtime / 项目运行时</h3>
+              <p>读取项目契约，统一编排 Task、Case、Agent Plugin、Skill、MCP、验证、进度与受控 Git 交接。</p>
+            </div>
+            <div class="file-map" aria-label="project-runtime 文件入口">
+              <a class="file-link" href="./skills/project-runtime/SKILL.md">
+                <strong>SKILL.md</strong>
+                <span>AI 执行入口：项目生命周期、能力路由与职责边界。</span>
+              </a>
+              <a class="file-link" href="./skills/project-runtime/references/capability-config.md">
+                <strong>能力配置参考</strong>
+                <span>Agent Plugin、Skill 与 MCP 的盘点、迁移和同步契约。</span>
+              </a>
+              <a class="file-link" href="./plugin.json">
+                <strong>plugin.json</strong>
+                <span>包含两个 Skill 与 runtime 的统一安装入口。</span>
+              </a>
+            </div>
+            <div class="actions" aria-label="project-runtime 链接">
+              <a class="button" href="./skills/project-runtime/index.html">浏览</a>
+              <a class="button secondary" href="./skills/project-runtime/SKILL.md">Skill</a>
+              <a class="button secondary" href="./plugin.json">Plugin</a>
             </div>
           </article>
         </div>

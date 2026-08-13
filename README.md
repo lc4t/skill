@@ -1,77 +1,67 @@
-# 云端 Skills
+# Agents Init Plugin
 
-这是一个公开的 skill 仓库，用于存放可被浏览器、人类读者、AI Agent 和程序共同读取的模板型技能文件。
+这是一个公开、可移植的 Agent Plugin，包含两个职责独立的中文 Skill：
 
-仓库当前主要承载 **agents-init v5 / Project Profile 初始化器**：只负责创建或迁移通用项目骨架。运行期项目管理由外部 `project-runtime` 负责，Opinion 作为独立能力提供指导和审查。
+- `agents-init`：创建或显式迁移项目骨架与 Project Profile；
+- `project-runtime`：初始化完成后，统一管理 Task、Case、Agent Plugin、Skill、MCP、验证、进度与受控 Git 交接。
 
-## 读取入口
+Opinion 保持独立，只负责指导和审查交付物。仓库不包含任何用户的 `global.yml`、凭据、私有路径或私有项目内容。
 
-| 读者 | 入口 | 用途 |
-|---|---|---|
-| 浏览器 | [`index.html`](index.html) | 查看站点首页和 skill 目录 |
-| 程序 | [`index.json`](index.json) | 读取全站机器索引 |
-| AI Agent | [`skills/agents-init/SKILL.md`](skills/agents-init/SKILL.md) | 读取 skill 执行入口 |
-| 模板消费者 | [`skills/agents-init/AGENT.template.md`](skills/agents-init/AGENT.template.md) | 读取 agents-init v5 骨架契约与迁移规则 |
-| 元数据消费者 | [`skills/agents-init/skill.json`](skills/agents-init/skill.json) | 读取单个 skill 的机器元数据 |
+## 安装单元
 
-## 发布状态
+**仓库根目录是唯一安装权威。** Agent Plugins 1.0 manifest 为 [`plugin.json`](plugin.json)，MCP 清单为 [`mcp.json`](mcp.json)。只下载 `skills/agents-init/` 会缺少必需的 `project-runtime`，初始化器会以 `runtime-required` 停止并保持目标项目零写入。
 
-| 分支 | 目标站点 | 说明 |
-|---|---|---|
-| `main` | `skill.sakanano.moe` | 正式站点，由 GitHub Actions 发布 |
-| `test` | 本地预览 | 草稿和测试分支，不触发 GitHub Pages 发布 |
+### Codex
 
-发布由 GitHub Actions（GitHub 自动化工作流）处理。GitHub Pages 只以 `main` 分支为准；`test` 分支用于本地查看和修改验证。
+克隆或下载完整仓库后，先预演，再应用：
+
+```bash
+python3 runtime/project_runtime_config.py bootstrap --plugin . --client codex
+python3 runtime/project_runtime_config.py bootstrap --plugin . --client codex --apply
+```
+
+### Cursor
+
+```bash
+python3 runtime/project_runtime_config.py bootstrap --plugin . --client cursor
+python3 runtime/project_runtime_config.py bootstrap --plugin . --client cursor --apply
+```
+
+其他支持 Agent Plugins 1.0 的客户端直接安装仓库根目录。
+
+## 初始化项目
+
+安装完整 Plugin 后，从 `skills/agents-init/` 运行初始化器。命令默认 dry-run：
+
+```bash
+python3 skills/agents-init/scripts/init_project.py \
+  --project /path/to/project --name example \
+  --project-type code --vcs github --stack python \
+  --runtime local --agent-cli codex
+```
+
+审阅后追加 `--apply`。初始化器从 [`AGENT.template.md`](skills/agents-init/AGENT.template.md) 的具名中文区块生成 Markdown，并在任何写入前验证同包 runtime。
 
 ## 目录结构
 
 ```text
 /
-├─ index.html
-├─ index.json
-├─ README.md
-├─ CHANGELOG.md
-├─ .github/
-│  └─ workflows/
-│     └─ pages.yml
-├─ skills/
-│  └─ agents-init/
-│     ├─ SKILL.md
-│     ├─ skill.json
-│     ├─ project.schema.json
-│     ├─ index.html
-│     ├─ AGENT.template.md
-│     └─ scripts/
-│        ├─ init_project.py
-│        └─ test_init_project.py
-└─ archive/
-   └─ README.md
+├── plugin.json                    # Agent Plugins 1.0 权威 manifest
+├── mcp.json                       # 可移植 MCP 清单
+├── .codex-plugin/plugin.json      # Codex adapter
+├── .mcp.json                      # Codex MCP adapter
+├── skills/
+│   ├── agents-init/
+│   └── project-runtime/
+├── runtime/                       # project-runtime CLI 与 MCP server
+├── scripts/export_project_runtime.py
+└── tests/
 ```
 
-## 当前 Skill
+## 维护与发布
 
-| Skill | 版本 | 定位 | 浏览器入口 | AI 入口 | 元数据 |
-|---|---:|---|---|---|---|
-| `agents-init` | `5.1.0` | 初始化或显式迁移 Project Profile、Agent Plugins 占位与最小路由文件，不承载运行期管理或个人 Opinion | [`index.html`](skills/agents-init/index.html) | [`SKILL.md`](skills/agents-init/SKILL.md) | [`skill.json`](skills/agents-init/skill.json) |
-
-## 文件约定
-
-| 文件 | 角色 |
-|---|---|
-| `SKILL.md` | AI Agent 的执行入口，描述触发条件、必读文件和执行流程 |
-| `skill.json` | 机器可读 manifest（清单文件），描述版本、路径、命令、产物和兼容性 |
-| `index.html` | 浏览器可读页面 |
-| `AGENT.template.md` | agents-init v5 骨架契约与迁移说明 |
-| `scripts/init_project.py` | 默认 dry-run、无覆盖的确定性初始化器 |
-| `project.schema.json` | Project Profile 的公开 JSON Schema |
-| `index.json` | 全站索引，汇总所有 skill 的入口与元数据 |
-
-公开模板不包含个人 `global.yml`、凭据、私有路径或私有 Skill 内容。生成的 `OPINION.md` 只含项目覆盖占位和私有 Opinion authority 配置指引。
-
-## 维护约定
-
-- 每个 skill 使用独立目录，目录名使用小写字母、数字和短横线。
-- Markdown 执行入口统一命名为 `SKILL.md`。
-- 单个 skill 的机器元数据统一命名为 `skill.json`。
-- 顶层 `index.json` 只放全站索引，不承载长正文。
+- `tools/project-runtime` 等可信源码根通过 `scripts/export_project_runtime.py` 白名单导出；默认只检查，`--apply` 才写入。
+- Skill 主体与用户可读描述使用中文；协议字段、命令和专有名词保留原名。
+- `index.json` 是站点机器索引，`index.html` 是浏览器入口。
 - 版本、结构或入口变化记录到 [`CHANGELOG.md`](CHANGELOG.md)。
+- push 前必须完成单元测试、Plugin 校验、端到端初始化和公开敏感信息审计。

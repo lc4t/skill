@@ -1,0 +1,24 @@
+{
+  "id": "project-runtime",
+  "name": "project-runtime / 项目运行时",
+  "description": "读取项目契约，统一编排 Task、Case、Skill、MCP、验证、进度与受控 Git 交接。",
+  "schema_version": "1.0",
+  "version": "1.3.3",
+  "status": "stable",
+  "language": "zh-CN",
+  "updated_at": "2026-08-13",
+  "authors": [{"name": "lc4t"}],
+  "tags": ["project-runtime", "project-management", "agent-plugins", "skills", "mcp"],
+  "entrypoints": {
+    "browser": "./index.html",
+    "agent": "./SKILL.md",
+    "reference": "./references/capability-config.md",
+    "cli": "../../runtime/project_runtime_config.py",
+    "mcp": "../../mcp.json"
+  },
+  "boundaries": {
+    "initialization": "agents-init",
+    "project_management": "project-runtime",
+    "guidance_and_review": "独立 Opinion provider"
+  }
+}

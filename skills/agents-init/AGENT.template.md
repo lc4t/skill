@@ -1,13 +1,13 @@
-# AGENT.template.md v5
+# AGENT.template.md v5.2
 
-> 适用范围：可移植的项目初始化与迁移。运行期项目管理和 Opinion 规则由外部能力负责。
+> 适用范围：可移植的项目初始化与迁移。运行期项目管理由同一 Plugin 内的 `project-runtime` 负责，Opinion 规则由独立 provider 负责。
 
 ## 1. 设计契约
 
 生成的项目严格分离四类职责：
 
 1. **项目契约**——`AGENTS.md` 与机器可读的 Project Profile 描述仓库。
-2. **项目运行时**——唯一的外部 `project-runtime` Skill 管理工作容器、能力路由、验证、进度和 Git。
+2. **项目运行时**——同一 Plugin 内唯一的 `project-runtime` Skill 管理工作容器、能力路由、验证、进度和 Git。
 3. **指导/审查**——独立的 Opinion provider 解析全局、场景与项目规则。
 4. **交付能力**——领域 Skill 与确定性 Tool 创建或检查交付物。
 
@@ -47,7 +47,7 @@ Agent Plugins 1.0 可移植文件直接位于 `.agents/`：`plugin.json`、`skil
 {
   "$schema": "https://skill.sakanano.moe/skills/agents-init/project.schema.json",
   "schema_version": "1.0",
-  "initializer_version": "5.1.0",
+  "initializer_version": "5.2.0",
   "name": "PROJECT_NAME",
   "profile": {
     "project_type": ["PROJECT_TYPE"],
@@ -58,6 +58,8 @@ Agent Plugins 1.0 可移植文件直接位于 `.agents/`：`plugin.json`、`skil
   },
   "runtime": {
     "skill": "project-runtime",
+    "plugin": "agents-init",
+    "distribution": "bundled",
     "required": true,
     "commit_policy": "explicit",
     "push_policy": "explicit"
@@ -93,6 +95,7 @@ Agent Plugins 1.0 可移植文件直接位于 `.agents/`：`plugin.json`、`skil
 
 ## 4. AGENTS.md 模板
 
+<!-- agents-init:template AGENTS.md -->
 ```markdown
 # PROJECT_NAME — Agent 执行入口
 
@@ -129,6 +132,7 @@ Agent Plugins 1.0 可移植文件直接位于 `.agents/`：`plugin.json`、`skil
 - 架构/文档：TODO
 - 隐私或禁止路径：未声明
 ```
+<!-- /agents-init:template -->
 
 保持入口简短。把稳定的项目专属约束放入 `AGENT.RULES.md`；禁止在任一入口文件复制完整运行时工作流。
 
@@ -136,6 +140,7 @@ Agent Plugins 1.0 可移植文件直接位于 `.agents/`：`plugin.json`、`skil
 
 ### AGENT.RULES.md
 
+<!-- agents-init:template AGENT.RULES.md -->
 ```markdown
 # 项目专属规则
 
@@ -157,9 +162,11 @@ Agent Plugins 1.0 可移植文件直接位于 `.agents/`：`plugin.json`、`skil
 - 默认禁止读取：未声明
 - 需要授权的外部写入：全部，除非另有明确配置
 ```
+<!-- /agents-init:template -->
 
 ### OPINION.md
 
+<!-- agents-init:template OPINION.md -->
 ```markdown
 # 项目 Opinion 覆盖层
 
@@ -167,35 +174,43 @@ Agent Plugins 1.0 可移植文件直接位于 `.agents/`：`plugin.json`、`skil
 
 个人全局与场景规则归用户的私有 Opinion 权威源所有。在 `.agents/moe.sakanano.project-runtime/project.json` 中配置 provider；禁止把这些规则复制进公开项目模板。
 ```
+<!-- /agents-init:template -->
 
 ### CLAUDE.md 与 AGENT.md
 
+<!-- agents-init:template ROUTE.md -->
 ```markdown
 # Agent 路由
 
 读取 `AGENTS.md` 并遵循其中的 Project Profile。加载 `project-runtime` 管理项目；独立加载已配置的 Opinion provider 进行指导与审查。
 ```
+<!-- /agents-init:template -->
 
 ### 流程占位文件
 
 `.agent-doc/plan.md`:
 
+<!-- agents-init:template .agent-doc/plan.md -->
 ```markdown
 # 计划
 
 当前没有活动的多步骤计划。
 ```
+<!-- /agents-init:template -->
 
 `.agent-doc/progress.md`:
 
+<!-- agents-init:template .agent-doc/progress.md -->
 ```markdown
 # 进度
 
 当前没有活动的 Task 或 Case。项目工作状态由 `project-runtime` 通过已配置的项目子系统管理。
 ```
+<!-- /agents-init:template -->
 
 `.agent-doc/chat-summary.md`:
 
+<!-- agents-init:template .agent-doc/chat-summary.md -->
 ```markdown
 # 会话摘要
 
@@ -211,6 +226,17 @@ Agent Plugins 1.0 可移植文件直接位于 `.agents/`：`plugin.json`、`skil
 
 无。候选规则通过已配置的 Opinion provider 提交，禁止在此晋升。
 ```
+<!-- /agents-init:template -->
+
+`docs/refs/README.md`:
+
+<!-- agents-init:template docs/refs/README.md -->
+```markdown
+# 参考资料
+
+项目契约要求保留可复用参考资料时，将其放在这里。
+```
+<!-- /agents-init:template -->
 
 ## 6. Agent Plugin 占位文件
 
@@ -243,7 +269,7 @@ Agent Plugins 1.0 可移植文件直接位于 `.agents/`：`plugin.json`、`skil
 1. 使用只读命令检查事实。
 2. 填写有证据支持的 Profile 值，未确定的命令保留为 `TODO`。
 3. 预演初始化器并展示碰撞项。
-4. 获得授权后应用。
+4. 确认同一 Plugin 内的 `project-runtime` 可用，获得授权后应用。
 5. 解析 JSON 并验证路由文件。
 
 ### 既有项目
@@ -251,7 +277,7 @@ Agent Plugins 1.0 可移植文件直接位于 `.agents/`：`plugin.json`、`skil
 1. 保留现有文件并识别其权威性。
 2. 与 v5 比较职责，不以文件名是否相同作为判断依据。
 3. 先创建机器可读 Profile。
-4. 只有 `project-runtime` 可用后，才精简重复的 Agent 入口说明。
+4. 只有同包 `project-runtime` 验证通过后，才精简重复的 Agent 入口说明。
 5. 保持历史 Task/Case 与能力源完整，随后使用 `project-runtime` 盘点。
 6. 只有得到明确授权，才能把个人 Opinion 内容移入私有权威源。
 
