@@ -3,7 +3,7 @@
   "name": "agents-init v5 / Project Profile 初始化器",
   "description": "创建或迁移通用项目骨架与 Project Profile；运行期项目管理交给 project-runtime，Opinion 独立负责指导和审查。",
   "schema_version": "1.0",
-  "version": "5.0.0",
+  "version": "5.0.1",
   "status": "stable",
   "language": "zh-CN",
   "license": "CC-BY-4.0",

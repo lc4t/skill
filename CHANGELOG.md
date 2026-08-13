@@ -2,6 +2,12 @@
 
 ## 2026-08-13
 
+### Fixed
+
+- 初始化 apply 改为全有或全无：任一冲突时零写入，写入中途失败只回滚本次已知文件。
+- 使用 descriptor-bound 路径遍历拒绝父目录 symlink，避免骨架写出项目根目录。
+- Project Profile 可声明 `native_mcp_sources`，供 project-runtime 纳管历史或 client-local MCP。
+
 ### Changed
 
 - 发布 `agents-init v5`，将职责收口为项目骨架初始化与版本迁移。

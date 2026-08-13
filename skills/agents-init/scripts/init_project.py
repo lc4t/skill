@@ -5,7 +5,9 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
+import stat
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -50,7 +52,7 @@ def files_for(inputs: Inputs) -> dict[Path, str]:
     profile = {
         "$schema": "https://skill.sakanano.moe/skills/agents-init/project.schema.json",
         "schema_version": "1.0",
-        "initializer_version": "5.0.0",
+        "initializer_version": "5.0.1",
         "name": inputs.name,
         "profile": {
             "project_type": list(inputs.project_type),
@@ -75,6 +77,7 @@ def files_for(inputs: Inputs) -> dict[Path, str]:
             "plugin_dirs": [],
             "skill_roots": [".agents/skills"],
             "mcp_sources": [".agents/mcp.json"],
+            "native_mcp_sources": [],
             "destination_skill_root": ".agents/skills",
             "destination_mcp": ".agents/mcp.json",
         },
@@ -194,16 +197,122 @@ def plan_writes(root: Path, files: dict[Path, str]) -> tuple[list[Path], list[Pa
     create: list[Path] = []
     collisions: list[Path] = []
     for relative in sorted(files, key=str):
+        current = root
+        for part in relative.parts[:-1]:
+            current /= part
+            try:
+                metadata = current.lstat()
+            except FileNotFoundError:
+                break
+            if stat.S_ISLNK(metadata.st_mode):
+                raise InitError(f"refusing symlinked parent: {current.relative_to(root)}")
+            if not stat.S_ISDIR(metadata.st_mode):
+                raise InitError(f"parent is not a directory: {current.relative_to(root)}")
         destination = root / relative
-        (collisions if destination.exists() else create).append(relative)
+        try:
+            destination.lstat()
+            exists = True
+        except FileNotFoundError:
+            exists = False
+        (collisions if exists else create).append(relative)
     return create, collisions
 
 
+def _open_parent(root_fd: int, relative: Path, created_dirs: list[Path]) -> int:
+    descriptor = os.dup(root_fd)
+    traversed = Path()
+    flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0) | getattr(os, "O_NOFOLLOW", 0)
+    try:
+        for part in relative.parts[:-1]:
+            traversed /= part
+            try:
+                child = os.open(part, flags, dir_fd=descriptor)
+            except FileNotFoundError:
+                os.mkdir(part, mode=0o755, dir_fd=descriptor)
+                created_dirs.append(traversed)
+                child = os.open(part, flags, dir_fd=descriptor)
+            except OSError as exc:
+                raise InitError(f"unsafe parent path {traversed}: {exc}") from exc
+            os.close(descriptor)
+            descriptor = child
+        return descriptor
+    except Exception:
+        os.close(descriptor)
+        raise
+
+
+def _write_exclusive(parent_fd: int, name: str, payload: bytes) -> None:
+    flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0)
+    descriptor = os.open(name, flags, 0o644, dir_fd=parent_fd)
+    try:
+        offset = 0
+        while offset < len(payload):
+            written = os.write(descriptor, payload[offset:])
+            if written <= 0:
+                raise OSError("short write")
+            offset += written
+        os.fsync(descriptor)
+        os.fchmod(descriptor, 0o644)
+    finally:
+        os.close(descriptor)
+
+
+def _open_existing_parent(root_fd: int, relative: Path) -> int:
+    descriptor = os.dup(root_fd)
+    flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0) | getattr(os, "O_NOFOLLOW", 0)
+    try:
+        for part in relative.parts[:-1]:
+            child = os.open(part, flags, dir_fd=descriptor)
+            os.close(descriptor)
+            descriptor = child
+        return descriptor
+    except Exception:
+        os.close(descriptor)
+        raise
+
+
+def _unlink_relative(root_fd: int, relative: Path, *, directory: bool = False) -> None:
+    parent_fd = _open_existing_parent(root_fd, relative)
+    try:
+        if directory:
+            os.rmdir(relative.name, dir_fd=parent_fd)
+        else:
+            os.unlink(relative.name, dir_fd=parent_fd)
+    finally:
+        os.close(parent_fd)
+
+
 def apply_writes(root: Path, files: dict[Path, str], create: Iterable[Path]) -> None:
-    for relative in create:
-        destination = root / relative
-        destination.parent.mkdir(parents=True, exist_ok=True)
-        destination.write_text(files[relative], encoding="utf-8", newline="\n")
+    planned = list(create)
+    rendered = {relative: files[relative].encode("utf-8") for relative in planned}
+    created_files: list[Path] = []
+    created_dirs: list[Path] = []
+    root_fd = os.open(root, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0) | getattr(os, "O_NOFOLLOW", 0))
+    try:
+        for relative in planned:
+            parent_fd = _open_parent(root_fd, relative, created_dirs)
+            try:
+                _write_exclusive(parent_fd, relative.name, rendered[relative])
+                created_files.append(relative)
+            finally:
+                os.close(parent_fd)
+    except Exception as exc:
+        cleanup_errors: list[str] = []
+        for relative in reversed(created_files):
+            try:
+                _unlink_relative(root_fd, relative)
+            except OSError as cleanup_exc:
+                cleanup_errors.append(f"{relative}: {cleanup_exc}")
+        for relative in reversed(created_dirs):
+            try:
+                _unlink_relative(root_fd, relative, directory=True)
+            except OSError:
+                # A concurrent writer may have added unknown content. Never remove it.
+                pass
+        detail = f"; rollback incomplete: {', '.join(cleanup_errors)}" if cleanup_errors else ""
+        raise InitError(f"initialization rolled back after write failure: {exc}{detail}") from exc
+    finally:
+        os.close(root_fd)
 
 
 def parser() -> argparse.ArgumentParser:
@@ -216,7 +325,7 @@ def parser() -> argparse.ArgumentParser:
     result.add_argument("--stack", type=split_csv, required=True)
     result.add_argument("--runtime", required=True)
     result.add_argument("--agent-cli", type=split_csv, required=True)
-    result.add_argument("--apply", action="store_true", help="write non-colliding files")
+    result.add_argument("--apply", action="store_true", help="create the complete skeleton only when no collision exists")
     result.add_argument("--output", choices=("text", "json"), default="text")
     return result
 
@@ -233,18 +342,20 @@ def main(argv: list[str] | None = None) -> int:
             raise InitError("--name must not be empty")
         files = files_for(inputs)
         create, collisions = plan_writes(root, files)
-        if args.apply:
+        applied = bool(args.apply and not collisions)
+        if applied:
             apply_writes(root, files, create)
         result = {
             "ok": not collisions,
-            "applied": args.apply,
+            "applied": applied,
             "create": [str(path) for path in create],
             "preserved_collisions": [str(path) for path in collisions],
         }
         if args.output == "json":
             print(json_text(result), end="")
         else:
-            print(("Applied" if args.apply else "Dry-run") + f": {len(create)} create, {len(collisions)} preserved collision(s)")
+            label = "Applied" if applied else ("Blocked" if args.apply and collisions else "Dry-run")
+            print(label + f": {len(create)} create, {len(collisions)} preserved collision(s)")
             for path in create:
                 print(f"  create {path}")
             for path in collisions:

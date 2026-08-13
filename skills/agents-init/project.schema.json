@@ -53,6 +53,7 @@
         "plugin_dirs": {"$ref": "#/$defs/pathArray"},
         "skill_roots": {"$ref": "#/$defs/pathArray"},
         "mcp_sources": {"$ref": "#/$defs/pathArray"},
+        "native_mcp_sources": {"$ref": "#/$defs/pathArray"},
         "destination_skill_root": {"$ref": "#/$defs/relativePath"},
         "destination_mcp": {"$ref": "#/$defs/relativePath"}
       }

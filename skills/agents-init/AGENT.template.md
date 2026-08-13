@@ -47,7 +47,7 @@ Generate `.agents/moe.sakanano.project-runtime/project.json`:
 {
   "$schema": "https://skill.sakanano.moe/skills/agents-init/project.schema.json",
   "schema_version": "1.0",
-  "initializer_version": "5.0.0",
+  "initializer_version": "5.0.1",
   "name": "PROJECT_NAME",
   "profile": {
     "project_type": ["PROJECT_TYPE"],
@@ -72,6 +72,7 @@ Generate `.agents/moe.sakanano.project-runtime/project.json`:
     "plugin_dirs": [],
     "skill_roots": [".agents/skills"],
     "mcp_sources": [".agents/mcp.json"],
+    "native_mcp_sources": [],
     "destination_skill_root": ".agents/skills",
     "destination_mcp": ".agents/mcp.json"
   },

@@ -3,7 +3,7 @@ name: agents-init
 description: Initialize or migrate a repository to the agents-init v5 project skeleton. Use when the user asks to initialize Agent collaboration, create AGENTS.md, add the Project Profile, or migrate an older agents-init layout. This skill creates structure only; project-runtime owns ongoing project management and Opinion owns guidance/review.
 metadata:
   author: lc4t
-  version: "5.0.0"
+  version: "5.0.1"
 ---
 
 # Agents Init
@@ -31,7 +31,7 @@ Read [AGENT.template.md](AGENT.template.md) completely before initializing or mi
 2. Infer fields that have direct evidence. Mark uncertain values; ask once only when a missing choice materially changes the generated contract.
 3. Show the proposed file plan and collisions.
 4. After user approval, run the bundled initializer with `--apply`, or create the same files manually when the script cannot run.
-5. Preserve every existing file by default. Migrations edit only files the user selected after reviewing a diff.
+5. Any collision blocks the whole apply operation. Preserve every existing file; migrations edit only files the user selected after reviewing a diff.
 6. Parse generated JSON, check entry-file routing, and report remaining placeholders.
 
 Example dry-run:
