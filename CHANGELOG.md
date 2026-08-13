@@ -2,6 +2,10 @@
 
 ## 2026-08-13
 
+### 5.2.1
+
+- 新增 `llms.txt`、`INSTALL.md` 与 `bootstrap_and_init.py`，支持用户用一句自然语言请求触发完整 Plugin 安装与项目初始化。
+
 ### 5.2.0
 
 - 仓库根目录升级为 Agent Plugins 1.0 安装单元，同时分发 `agents-init` 与 `project-runtime`。

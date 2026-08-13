@@ -3,6 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="alternate" type="text/plain" href="./llms.txt" title="Agent 安装入口">
   <title>云端 Skills</title>
   <meta name="description" content="公开 skill 模板与可机器读取索引，用于浏览器、AI 与程序共同读取。">
   <style>
@@ -268,6 +269,16 @@
       <span class="badge">main 分支：skill.sakanano.moe</span>
     </header>
 
+    <section class="panel" aria-labelledby="one-line-title">
+      <h2 id="one-line-title">一句话交给 Agent</h2>
+      <p>直接说：<strong>用 https://skill.sakanano.moe/ 初始化当前项目</strong>。Agent 应读取 <a href="./llms.txt"><code>llms.txt</code></a> 与 <a href="./INSTALL.md"><code>INSTALL.md</code></a>，先预演完整 Plugin 安装和项目初始化，获得确认后再应用。</p>
+      <div class="actions">
+        <a class="button" href="./INSTALL.md">Agent 安装说明</a>
+        <a class="button secondary" href="./llms.txt">llms.txt</a>
+        <a class="button secondary" href="./plugin.json">Plugin manifest</a>
+      </div>
+    </section>
+
     <main>
       <section aria-labelledby="skills-title">
         <h2 id="skills-title">Skill 目录</h2>
@@ -329,7 +340,7 @@
       <aside aria-label="站点信息">
         <div class="panel">
           <h2>机器索引</h2>
-          <p>全站索引位于 <a href="./index.json"><code>index.json</code></a>。单个 skill 的元数据位于各自目录的 <code>skill.json</code>，用于自动发现、版本检查和入口解析。</p>
+          <p>Agent 首选读取 <a href="./llms.txt"><code>llms.txt</code></a>；安装工作流位于 <a href="./INSTALL.md"><code>INSTALL.md</code></a>；全站索引位于 <a href="./index.json"><code>index.json</code></a>。</p>
         </div>
         <div class="panel">
           <h2>新增规则</h2>

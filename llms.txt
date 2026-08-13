@@ -1,0 +1,15 @@
+# Agents Init Plugin
+
+一句话触发：用户要求“用 https://skill.sakanano.moe/ 初始化当前项目”时，读取 https://skill.sakanano.moe/INSTALL.md 并执行。
+
+完整 Plugin manifest：https://skill.sakanano.moe/plugin.json
+Agent Plugins 1.0 MCP manifest：https://skill.sakanano.moe/mcp.json
+初始化 Skill：https://skill.sakanano.moe/skills/agents-init/SKILL.md
+项目运行 Skill：https://skill.sakanano.moe/skills/project-runtime/SKILL.md
+
+必须安装完整 Plugin。禁止只下载 agents-init 子目录；禁止复制任何用户的 global.yml、凭据、.env 或私有路径。
+
+统一命令位于 Plugin 根目录：
+python3 scripts/bootstrap_and_init.py --client <codex|cursor> --project <absolute-path> --name <name> --project-type <csv> --vcs <vcs> --stack <csv> --runtime <runtime> --agent-cli <csv>
+
+命令默认 dry-run；审阅计划并获得用户授权后追加 --apply。成功标准为 initializer.applied=true 且 doctor.ok=true。

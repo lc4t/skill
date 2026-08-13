@@ -11,6 +11,12 @@ Opinion 保持独立，只负责指导和审查交付物。仓库不包含任何
 
 **仓库根目录是唯一安装权威。** Agent Plugins 1.0 manifest 为 [`plugin.json`](plugin.json)，MCP 清单为 [`mcp.json`](mcp.json)。只下载 `skills/agents-init/` 会缺少必需的 `project-runtime`，初始化器会以 `runtime-required` 停止并保持目标项目零写入。
 
+用户可以直接告诉具备联网、本地 Shell 与项目写入能力的 Agent：
+
+> 用 https://skill.sakanano.moe/ 初始化当前项目
+
+Agent 从 [`llms.txt`](llms.txt) 发现 [`INSTALL.md`](INSTALL.md)，再调用 `scripts/bootstrap_and_init.py` 完成预演、安装、初始化与 doctor。涉及联网、用户级安装或项目写入时，宿主仍可能要求一次权限确认。
+
 ### Codex
 
 克隆或下载完整仓库后，先预演，再应用：
@@ -42,6 +48,17 @@ python3 skills/agents-init/scripts/init_project.py \
 
 审阅后追加 `--apply`。初始化器从 [`AGENT.template.md`](skills/agents-init/AGENT.template.md) 的具名中文区块生成 Markdown，并在任何写入前验证同包 runtime。
 
+完整的一条命令流程：
+
+```bash
+python3 scripts/bootstrap_and_init.py \
+  --client codex --project /path/to/project --name example \
+  --project-type code --vcs github --stack python \
+  --runtime local --agent-cli codex
+```
+
+默认只预演；确认后追加 `--apply`。
+
 ## 目录结构
 
 ```text
@@ -55,6 +72,9 @@ python3 skills/agents-init/scripts/init_project.py \
 │   └── project-runtime/
 ├── runtime/                       # project-runtime CLI 与 MCP server
 ├── scripts/export_project_runtime.py
+├── scripts/bootstrap_and_init.py
+├── INSTALL.md
+├── llms.txt
 └── tests/
 ```
 

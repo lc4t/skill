@@ -3,7 +3,7 @@
     "id": "sakanano-cloud-skills",
     "name": "Agents Init Plugin",
     "description": "可安装的项目初始化与持续项目运行时。",
-    "version": "0.3.0",
+    "version": "0.3.1",
     "updated_at": "2026-08-13",
     "homepage": "./index.html",
     "future_domain": "skill.sakanano.moe"
@@ -11,8 +11,11 @@
   "plugin": {
     "manifest": "./plugin.json",
     "mcp": "./mcp.json",
-    "version": "5.2.0",
-    "install_unit": "repository-root"
+    "version": "5.2.1",
+    "install_unit": "repository-root",
+    "agent_install": "./INSTALL.md",
+    "llms": "./llms.txt",
+    "bootstrap_and_init": "./scripts/bootstrap_and_init.py"
   },
   "skills": [
     {
