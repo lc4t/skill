@@ -51,7 +51,7 @@ class InitProjectTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             profile = json.loads((root / ".agents/moe.sakanano.project-runtime/project.json").read_text())
             self.assertEqual(profile["schema_version"], "1.0")
-            self.assertEqual(profile["initializer_version"], "5.0.1")
+            self.assertEqual(profile["initializer_version"], "5.1.0")
             self.assertEqual(profile["$schema"], "https://skill.sakanano.moe/skills/agents-init/project.schema.json")
             self.assertEqual(profile["runtime"]["skill"], "project-runtime")
             self.assertIsNone(profile["opinion"]["provider"])
@@ -104,6 +104,43 @@ class InitProjectTests(unittest.TestCase):
             result = self.run_script(Path(temporary), "--slug", "Bad Slug")
             self.assertEqual(result.returncode, 2)
             self.assertFalse(json.loads(result.stdout)["ok"])
+
+    def test_migrate_creates_missing_and_preserves_unselected_collision(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / "AGENTS.md").write_text("legacy\n", encoding="utf-8")
+            result = self.run_script(root, "--mode", "migrate", "--apply")
+            self.assertEqual(result.returncode, 0, result.stderr)
+            payload = json.loads(result.stdout)
+            self.assertTrue(payload["applied"])
+            self.assertEqual((root / "AGENTS.md").read_text(), "legacy\n")
+            self.assertTrue((root / ".agents/plugin.json").is_file())
+
+    def test_migrate_replaces_only_selected_path_with_external_recovery(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary, tempfile.TemporaryDirectory() as backup:
+            root = Path(temporary)
+            (root / "AGENTS.md").write_text("legacy\n", encoding="utf-8")
+            recovery = Path(backup) / "migration"
+            result = self.run_script(
+                root,
+                "--mode", "migrate",
+                "--replace", "AGENTS.md",
+                "--recovery-dir", str(recovery),
+                "--apply",
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertNotEqual((root / "AGENTS.md").read_text(), "legacy\n")
+            self.assertEqual((recovery / "AGENTS.md").read_text(), "legacy\n")
+
+    def test_migrate_replacement_requires_recovery(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / "AGENTS.md").write_text("legacy\n", encoding="utf-8")
+            result = self.run_script(
+                root, "--mode", "migrate", "--replace", "AGENTS.md", "--apply"
+            )
+            self.assertEqual(result.returncode, 2)
+            self.assertEqual((root / "AGENTS.md").read_text(), "legacy\n")
 
 
 if __name__ == "__main__":

@@ -2,6 +2,11 @@
 
 ## 2026-08-13
 
+### Added
+
+- 新增显式 `--mode migrate`：保留未选择的碰撞文件，仅替换逐项指定路径，并要求把原文件备份到项目外恢复目录。
+- Project Profile 新增 `credential_env_file` 与 `mcp_client_policy` 空配置，供 project-runtime 安全加载本地凭据和按客户端投影 MCP。
+
 ### Fixed
 
 - 初始化 apply 改为全有或全无：任一冲突时零写入，写入中途失败只回滚本次已知文件。

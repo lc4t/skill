@@ -54,6 +54,21 @@
         "skill_roots": {"$ref": "#/$defs/pathArray"},
         "mcp_sources": {"$ref": "#/$defs/pathArray"},
         "native_mcp_sources": {"$ref": "#/$defs/pathArray"},
+        "credential_env_file": {
+          "anyOf": [{"$ref": "#/$defs/relativePath"}, {"type": "null"}]
+        },
+        "mcp_client_policy": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "include": {"$ref": "#/$defs/stringArray"},
+              "exclude": {"$ref": "#/$defs/stringArray"}
+            },
+            "not": {"required": ["include", "exclude"]}
+          }
+        },
         "destination_skill_root": {"$ref": "#/$defs/relativePath"},
         "destination_mcp": {"$ref": "#/$defs/relativePath"}
       }

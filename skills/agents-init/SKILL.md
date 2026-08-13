@@ -1,9 +1,6 @@
 ---
 name: agents-init
 description: Initialize or migrate a repository to the agents-init v5 project skeleton. Use when the user asks to initialize Agent collaboration, create AGENTS.md, add the Project Profile, or migrate an older agents-init layout. This skill creates structure only; project-runtime owns ongoing project management and Opinion owns guidance/review.
-metadata:
-  author: lc4t
-  version: "5.0.1"
 ---
 
 # Agents Init
@@ -50,6 +47,15 @@ python3 scripts/init_project.py --project /path/to/project \
   --stack python --runtime local --agent-cli codex --apply
 ```
 
+Migrate an existing project by preserving all collisions and explicitly replacing only reviewed paths. Replacements require an outside-project recovery directory:
+
+```bash
+python3 scripts/init_project.py --mode migrate --project /path/to/project \
+  --name example --project-type code --vcs github \
+  --stack python --runtime local --agent-cli codex \
+  --replace AGENTS.md --recovery-dir /safe/recovery/example-v5 --apply
+```
+
 ## Output contract
 
 The v5 baseline is:
@@ -79,6 +85,7 @@ docs/
 ## Migration rules
 
 - Detect the old version from explicit markers; do not infer that an unfamiliar layout is v4.
+- Use `--mode migrate`; unselected collisions remain untouched, and every `--replace` path is backed up outside the project before the new skeleton file is written.
 - Preserve project facts and local constraints.
 - Remove duplicated lifecycle prose from Agent entry files only after `project-runtime` is available.
 - Move personal/global rule content to the user's private authority only with explicit approval; never commit it to this public template.

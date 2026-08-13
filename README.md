@@ -52,7 +52,7 @@
 
 | Skill | 版本 | 定位 | 浏览器入口 | AI 入口 | 元数据 |
 |---|---:|---|---|---|---|
-| `agents-init` | `5.0.1` | 初始化 Project Profile、Agent Plugins 占位与最小路由文件，不承载运行期管理或个人 Opinion | [`index.html`](skills/agents-init/index.html) | [`SKILL.md`](skills/agents-init/SKILL.md) | [`skill.json`](skills/agents-init/skill.json) |
+| `agents-init` | `5.1.0` | 初始化或显式迁移 Project Profile、Agent Plugins 占位与最小路由文件，不承载运行期管理或个人 Opinion | [`index.html`](skills/agents-init/index.html) | [`SKILL.md`](skills/agents-init/SKILL.md) | [`skill.json`](skills/agents-init/skill.json) |
 
 ## 文件约定
 

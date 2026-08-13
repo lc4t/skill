@@ -52,7 +52,7 @@ def files_for(inputs: Inputs) -> dict[Path, str]:
     profile = {
         "$schema": "https://skill.sakanano.moe/skills/agents-init/project.schema.json",
         "schema_version": "1.0",
-        "initializer_version": "5.0.1",
+        "initializer_version": "5.1.0",
         "name": inputs.name,
         "profile": {
             "project_type": list(inputs.project_type),
@@ -78,6 +78,8 @@ def files_for(inputs: Inputs) -> dict[Path, str]:
             "skill_roots": [".agents/skills"],
             "mcp_sources": [".agents/mcp.json"],
             "native_mcp_sources": [],
+            "credential_env_file": None,
+            "mcp_client_policy": {},
             "destination_skill_root": ".agents/skills",
             "destination_mcp": ".agents/mcp.json",
         },
@@ -315,6 +317,67 @@ def apply_writes(root: Path, files: dict[Path, str], create: Iterable[Path]) -> 
         os.close(root_fd)
 
 
+def apply_migration(
+    root: Path,
+    files: dict[Path, str],
+    create: Iterable[Path],
+    replace: Iterable[Path],
+    recovery_dir: Path | None,
+) -> None:
+    create_paths = list(create)
+    replace_paths = list(replace)
+    if replace_paths and recovery_dir is None:
+        raise InitError("--recovery-dir is required when --replace is used")
+    recovery = recovery_dir.expanduser().resolve() if recovery_dir is not None else None
+    if recovery is not None:
+        if recovery == root or root in recovery.parents:
+            raise InitError("--recovery-dir must be outside the project root")
+        recovery.mkdir(parents=True, exist_ok=True, mode=0o700)
+        if recovery.is_symlink() or not recovery.is_dir():
+            raise InitError("--recovery-dir must be a real directory")
+        conflicts = [path for path in replace_paths if (recovery / path).exists()]
+        if conflicts:
+            raise InitError("recovery collision: " + ", ".join(str(path) for path in conflicts))
+
+    root_fd = os.open(root, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0) | getattr(os, "O_NOFOLLOW", 0))
+    created_files: list[Path] = []
+    created_dirs: list[Path] = []
+    moved: list[tuple[Path, Path]] = []
+    try:
+        for relative in replace_paths:
+            assert recovery is not None
+            original = root / relative
+            archived = recovery / relative
+            archived.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+            os.replace(original, archived)
+            moved.append((archived, original))
+        for relative in [*create_paths, *replace_paths]:
+            parent_fd = _open_parent(root_fd, relative, created_dirs)
+            try:
+                _write_exclusive(parent_fd, relative.name, files[relative].encode("utf-8"))
+                created_files.append(relative)
+            finally:
+                os.close(parent_fd)
+    except Exception as exc:
+        for relative in reversed(created_files):
+            try:
+                _unlink_relative(root_fd, relative)
+            except OSError:
+                pass
+        for archived, original in reversed(moved):
+            if archived.exists() and not original.exists():
+                original.parent.mkdir(parents=True, exist_ok=True)
+                os.replace(archived, original)
+        for relative in reversed(created_dirs):
+            try:
+                _unlink_relative(root_fd, relative, directory=True)
+            except OSError:
+                pass
+        raise InitError(f"migration rolled back after write failure: {exc}") from exc
+    finally:
+        os.close(root_fd)
+
+
 def parser() -> argparse.ArgumentParser:
     result = argparse.ArgumentParser(description=__doc__)
     result.add_argument("--project", type=Path, required=True)
@@ -325,6 +388,9 @@ def parser() -> argparse.ArgumentParser:
     result.add_argument("--stack", type=split_csv, required=True)
     result.add_argument("--runtime", required=True)
     result.add_argument("--agent-cli", type=split_csv, required=True)
+    result.add_argument("--mode", choices=("init", "migrate"), default="init")
+    result.add_argument("--replace", action="append", default=[], help="known skeleton path to replace in migrate mode")
+    result.add_argument("--recovery-dir", type=Path, help="outside-project backup directory required for replacements")
     result.add_argument("--apply", action="store_true", help="create the complete skeleton only when no collision exists")
     result.add_argument("--output", choices=("text", "json"), default="text")
     return result
@@ -342,25 +408,47 @@ def main(argv: list[str] | None = None) -> int:
             raise InitError("--name must not be empty")
         files = files_for(inputs)
         create, collisions = plan_writes(root, files)
-        applied = bool(args.apply and not collisions)
-        if applied:
-            apply_writes(root, files, create)
+        requested_replace = {Path(value) for value in args.replace}
+        if args.mode == "init" and requested_replace:
+            raise InitError("--replace is available only in migrate mode")
+        unknown_replace = requested_replace - set(files)
+        if unknown_replace:
+            raise InitError("unknown skeleton path: " + ", ".join(str(path) for path in sorted(unknown_replace, key=str)))
+        missing_replace = requested_replace - set(collisions)
+        if missing_replace:
+            raise InitError("--replace path does not exist: " + ", ".join(str(path) for path in sorted(missing_replace, key=str)))
+        replace = [path for path in collisions if path in requested_replace]
+        preserved = [path for path in collisions if path not in requested_replace]
+        if args.mode == "init":
+            applied = bool(args.apply and not collisions)
+            if applied:
+                apply_writes(root, files, create)
+            ok = not collisions
+        else:
+            applied = bool(args.apply)
+            if applied:
+                apply_migration(root, files, create, replace, args.recovery_dir)
+            ok = True
         result = {
-            "ok": not collisions,
+            "ok": ok,
+            "mode": args.mode,
             "applied": applied,
             "create": [str(path) for path in create],
-            "preserved_collisions": [str(path) for path in collisions],
+            "replace": [str(path) for path in replace],
+            "preserved_collisions": [str(path) for path in preserved],
         }
         if args.output == "json":
             print(json_text(result), end="")
         else:
-            label = "Applied" if applied else ("Blocked" if args.apply and collisions else "Dry-run")
-            print(label + f": {len(create)} create, {len(collisions)} preserved collision(s)")
+            label = "Applied" if applied else ("Blocked" if args.mode == "init" and args.apply and collisions else "Dry-run")
+            print(label + f": {len(create)} create, {len(replace)} replace, {len(preserved)} preserved collision(s)")
             for path in create:
                 print(f"  create {path}")
-            for path in collisions:
+            for path in replace:
+                print(f"  replace {path}")
+            for path in preserved:
                 print(f"  preserve {path}")
-        return 1 if collisions else 0
+        return 0 if ok else 1
     except InitError as error:
         if args.output == "json":
             print(json_text({"ok": False, "error": str(error)}), end="")
