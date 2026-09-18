@@ -1,11 +1,11 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "agents-init",
-  "version": "5.2.2",
-  "description": "初始化 Agent 项目契约，并通过 project-runtime 持续管理项目能力与生命周期。",
+  "version": "6.0.0",
+  "description": "初始化或迁移 Agent 项目契约；同一分发包附带 project-orchestrator（生命周期）与 agent-pack（扩展能力管理）。",
   "author": {
     "name": "lc4t"
   },
   "repository": "https://github.com/lc4t/skill",
-  "keywords": ["agents-init", "project-runtime", "agent-skills", "mcp", "agent-plugins"]
+  "keywords": ["agents-init", "project-orchestrator", "agent-pack", "agent-skills", "agent-plugins"]
 }

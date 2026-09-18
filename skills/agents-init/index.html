@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>agents-init v5.2 · 云端 Skills</title>
-  <meta name="description" content="创建或迁移通用项目骨架与 Project Profile；同包 project-runtime 管理运行期。">
+  <title>agents-init v6 · 云端 Skills</title>
+  <meta name="description" content="创建或迁移通用项目骨架与 Project Profile；随包 project-orchestrator 管理生命周期，agent-pack 管理扩展能力。">
   <style>
     :root {
       color-scheme: light;
@@ -258,12 +258,12 @@
 
     <header>
       <p class="eyebrow">Skill · agents-init</p>
-      <h1>agents-init v5.2</h1>
-      <p class="lead">创建或迁移通用项目骨架与 Project Profile；写入前验证同一 Plugin 内的 <code>project-runtime</code>，Opinion 独立负责指导和审查。</p>
+      <h1>agents-init v6</h1>
+      <p class="lead">创建或迁移通用项目骨架与 Project Profile；写入前验证随包的 <code>project-orchestrator</code> 与 <code>agent-pack</code>，Opinion 独立负责指导和审查。</p>
       <div class="meta" aria-label="Skill 元数据">
-        <div><strong>版本</strong><span>5.2.0</span></div>
+        <div><strong>版本</strong><span>6.0.0</span></div>
         <div><strong>状态</strong><span>stable</span></div>
-        <div><strong>更新</strong><span>2026-08-13</span></div>
+        <div><strong>更新</strong><span>2026-09-18</span></div>
         <div><strong>语言</strong><span>zh-CN</span></div>
       </div>
     </header>
@@ -282,7 +282,7 @@
           </a>
           <a class="resource" href="./AGENT.template.md">
             <strong>模板文件</strong>
-            <span>v5 骨架契约、职责边界与迁移规则。</span>
+            <span>v6 骨架契约、职责边界与迁移规则。</span>
           </a>
         </div>
       </section>
@@ -309,8 +309,8 @@
         <h2>适用场景</h2>
         <ul>
           <li>新仓库需要统一的 Agent 入口与 Project Profile。</li>
-          <li>旧版 agents-init 项目需要迁移到 v5 职责边界。</li>
-          <li>项目准备通过 project-runtime 管理 Skill、MCP、Task/Case 与 Git。</li>
+          <li>旧版 agents-init 项目（含 v5 project-runtime Profile）需要迁移到 v6 职责边界。</li>
+          <li>项目准备通过 project-orchestrator 管理 Task/Case 与 Git，通过 agent-pack 管理 Skill 与 MCP。</li>
           <li>公开模板需要排除个人规则、凭据与私有路径。</li>
         </ul>
       </section>
@@ -340,10 +340,10 @@
         <h2>标准流程</h2>
         <ol>
           <li>扫描仓库并确认可证实的 Project Profile 字段。</li>
-          <li>预览 v5 文件计划和所有路径冲突。</li>
+          <li>预览 v6 文件计划和所有路径冲突。</li>
           <li>确认后运行无覆盖初始化器。</li>
           <li>解析 JSON 并检查 Agent 路由一致性。</li>
-          <li>由同包 project-runtime 后续导入或同步 Skill/MCP。</li>
+          <li>由随包 agent-pack 后续导入或同步 Skill/MCP。</li>
           <li>由独立 Opinion provider 管理用户规则与场景检查。</li>
         </ol>
       </section>

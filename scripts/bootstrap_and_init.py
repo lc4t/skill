@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""先预演完整 Plugin 安装与项目初始化，再按授权应用并运行 doctor。"""
+"""先预演三个 Plugin 的安装与项目初始化，再按授权应用并运行 agent-pack doctor。"""
 
 from __future__ import annotations
 
@@ -12,8 +12,13 @@ from typing import Any
 
 
 PLUGIN_ROOT = Path(__file__).resolve().parents[1]
-RUNTIME = PLUGIN_ROOT / "runtime" / "project_runtime_config.py"
+AGENT_PACK = PLUGIN_ROOT / "plugins" / "agent-pack" / "runtime" / "agent_pack_config.py"
 INITIALIZER = PLUGIN_ROOT / "skills" / "agents-init" / "scripts" / "init_project.py"
+INSTALL_UNITS = (
+    ("agents-init", PLUGIN_ROOT),
+    ("project-orchestrator", PLUGIN_ROOT / "plugins" / "project-orchestrator"),
+    ("agent-pack", PLUGIN_ROOT / "plugins" / "agent-pack"),
+)
 
 
 class BootstrapInitError(RuntimeError):
@@ -53,13 +58,13 @@ def initializer_command(args: argparse.Namespace, *, apply: bool) -> list[str]:
     return command
 
 
-def install_command(args: argparse.Namespace, *, apply: bool) -> list[str]:
+def install_command(plugin: Path, args: argparse.Namespace, *, apply: bool) -> list[str]:
     command = [
         sys.executable,
-        str(RUNTIME),
+        str(AGENT_PACK),
         "--output", "json",
         "bootstrap",
-        "--plugin", str(PLUGIN_ROOT),
+        "--plugin", str(plugin),
         "--client", args.client,
     ]
     if args.home:
@@ -72,11 +77,21 @@ def install_command(args: argparse.Namespace, *, apply: bool) -> list[str]:
 def doctor_command(project: Path) -> list[str]:
     return [
         sys.executable,
-        str(RUNTIME),
+        str(AGENT_PACK),
         "--output", "json",
         "doctor",
         "--project", str(project),
     ]
+
+
+def install_all(args: argparse.Namespace, *, apply: bool) -> tuple[bool, dict[str, Any]]:
+    results: dict[str, Any] = {}
+    for name, plugin in INSTALL_UNITS:
+        code, payload = run_json(install_command(plugin, args, apply=apply))
+        results[name] = payload
+        if code != 0 or not payload.get("ok"):
+            return False, results
+    return True, results
 
 
 def execute(args: argparse.Namespace) -> tuple[int, dict[str, Any]]:
@@ -92,13 +107,13 @@ def execute(args: argparse.Namespace) -> tuple[int, dict[str, Any]]:
             "initializer": init_preview,
         }
 
-    install_code, install_preview = run_json(install_command(args, apply=False))
-    if install_code != 0 or not install_preview.get("ok"):
+    plugins_ok, plugin_preview = install_all(args, apply=False)
+    if not plugins_ok:
         return 1, {
             "ok": False,
             "applied": False,
             "stage": "plugin-preview",
-            "plugin": install_preview,
+            "plugins": plugin_preview,
             "initializer": init_preview,
         }
 
@@ -106,16 +121,16 @@ def execute(args: argparse.Namespace) -> tuple[int, dict[str, Any]]:
         "ok": True,
         "applied": False,
         "stage": "preview",
-        "plugin": install_preview,
+        "plugins": plugin_preview,
         "initializer": init_preview,
         "doctor": None,
     }
     if not args.apply:
         return 0, result
 
-    install_code, installed = run_json(install_command(args, apply=True))
-    result["plugin"] = installed
-    if install_code != 0 or not installed.get("ok"):
+    plugins_ok, installed = install_all(args, apply=True)
+    result["plugins"] = installed
+    if not plugins_ok:
         result.update(ok=False, stage="plugin-apply")
         return 1, result
 
@@ -135,7 +150,7 @@ def execute(args: argparse.Namespace) -> tuple[int, dict[str, Any]]:
 
 def parser() -> argparse.ArgumentParser:
     result = argparse.ArgumentParser(description=__doc__)
-    result.add_argument("--client", choices=("codex", "cursor"), required=True)
+    result.add_argument("--client", choices=("codex", "cursor", "claude"), required=True)
     result.add_argument("--project", type=Path, required=True)
     result.add_argument("--name", required=True)
     result.add_argument("--slug")

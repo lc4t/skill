@@ -2,17 +2,20 @@
   "site": {
     "id": "sakanano-cloud-skills",
     "name": "Agents Init Plugin",
-    "description": "可安装的项目初始化与持续项目运行时。",
-    "version": "0.3.2",
-    "updated_at": "2026-08-13",
+    "description": "可安装的项目初始化器，附带项目生命周期编排与 Agent 扩展能力管理。",
+    "version": "0.4.0",
+    "updated_at": "2026-09-18",
     "homepage": "./index.html",
     "future_domain": "skill.sakanano.moe"
   },
   "plugin": {
     "manifest": "./plugin.json",
-    "mcp": "./mcp.json",
-    "version": "5.2.2",
+    "version": "6.0.0",
     "install_unit": "repository-root",
+    "bundled_plugins": [
+      "./plugins/project-orchestrator/plugin.json",
+      "./plugins/agent-pack/plugin.json"
+    ],
     "agent_install": "./INSTALL.md",
     "llms": "./llms.txt",
     "bootstrap_and_init": "./scripts/bootstrap_and_init.py"
@@ -20,9 +23,9 @@
   "skills": [
     {
       "id": "agents-init",
-      "name": "agents-init v5.2 / Project Profile 初始化器",
-      "description": "创建或迁移项目骨架；写入前验证同包 project-runtime。",
-      "version": "5.2.0",
+      "name": "agents-init v6 / Project Profile 初始化与迁移",
+      "description": "创建或迁移项目骨架；写入前验证同包 project-orchestrator 与 agent-pack；可把 v5 Profile 升级到 v6。",
+      "version": "6.0.0",
       "status": "stable",
       "entrypoints": {
         "browser": "./skills/agents-init/index.html",
@@ -32,16 +35,27 @@
       }
     },
     {
-      "id": "project-runtime",
-      "name": "project-runtime / 项目运行时",
-      "description": "按项目契约统一编排生命周期与 Agent 能力。",
-      "version": "1.3.3",
+      "id": "project-orchestrator",
+      "name": "project-orchestrator / 项目生命周期编排",
+      "description": "按项目契约选择 Task/Case、路由 Tool 与叶子 Skill、验证并做受控 Git 交付。",
+      "version": "1.4.0",
       "status": "stable",
       "entrypoints": {
-        "browser": "./skills/project-runtime/index.html",
-        "agent": "./skills/project-runtime/SKILL.md",
-        "metadata": "./skills/project-runtime/skill.json",
-        "reference": "./skills/project-runtime/references/capability-config.md"
+        "agent": "./plugins/project-orchestrator/skills/project-orchestrator/SKILL.md",
+        "metadata": "./plugins/project-orchestrator/plugin.json"
+      }
+    },
+    {
+      "id": "agent-pack",
+      "name": "agent-pack / Agent 扩展能力管理",
+      "description": "在项目与 Codex / Cursor / Claude 之间盘点、校验、安装、同步、迁移与对账 Plugin、Skill、MCP。",
+      "version": "1.5.0",
+      "status": "stable",
+      "entrypoints": {
+        "agent": "./plugins/agent-pack/skills/agent-pack/SKILL.md",
+        "metadata": "./plugins/agent-pack/plugin.json",
+        "mcp": "./plugins/agent-pack/mcp.json",
+        "reference": "./plugins/agent-pack/references/capability-config.md"
       }
     }
   ]

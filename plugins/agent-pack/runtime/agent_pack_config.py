@@ -26,8 +26,8 @@ from typing import Any, Iterable
 
 AGENT_PLUGIN_SCHEMA = "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json"
 AGENT_PLUGIN_MCP_SCHEMA = "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json"
-PROJECT_RUNTIME_NAMESPACE = "moe.sakanano.project-runtime"
-PROJECT_PROFILE_RELATIVE = Path(".agents") / PROJECT_RUNTIME_NAMESPACE / "project.json"
+PROJECT_PROFILE_NAMESPACE = "moe.sakanano.agent-pack"
+PROJECT_PROFILE_RELATIVE = Path(".agents") / PROJECT_PROFILE_NAMESPACE / "project.json"
 PLUGIN_NAME_RE = re.compile(r"^(?!.*(?:--|\.\.))[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?$")
 SKILL_NAME_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 SECRET_NAME_RE = re.compile(
@@ -40,6 +40,10 @@ SECRET_VALUE_RE = re.compile(
     re.IGNORECASE,
 )
 ENV_REFERENCE_RE = re.compile(r"\$\{([A-Za-z_][A-Za-z0-9_]*)\}")
+# Placeholders the client resolves at launch time (immutable package root and
+# client-managed writable state). They are never credentials and must not
+# trigger the credential-env-file requirement or env-launcher wrapping.
+RESERVED_ENV_PLACEHOLDERS = {"PLUGIN_ROOT", "PLUGIN_DATA"}
 COPY_IGNORE = {".git", ".venv", "__pycache__", "node_modules", ".DS_Store"}
 PLUGIN_FIELDS = {
     "$schema", "name", "version", "description", "author", "homepage",
@@ -47,7 +51,7 @@ PLUGIN_FIELDS = {
 }
 
 
-class RuntimeConfigError(RuntimeError):
+class AgentPackError(RuntimeError):
     """A user-actionable configuration or transfer error."""
 
 
@@ -105,23 +109,23 @@ class ProjectLayout:
 
 def _read_json(path: Path) -> dict[str, Any]:
     if path.is_symlink():
-        raise RuntimeConfigError(f"refusing symlinked JSON: {path}")
+        raise AgentPackError(f"refusing symlinked JSON: {path}")
     try:
         value = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
-        raise RuntimeConfigError(f"invalid JSON {path}: {exc}") from exc
+        raise AgentPackError(f"invalid JSON {path}: {exc}") from exc
     if not isinstance(value, dict):
-        raise RuntimeConfigError(f"JSON root must be an object: {path}")
+        raise AgentPackError(f"JSON root must be an object: {path}")
     return value
 
 
 def _read_jsonc(path: Path) -> dict[str, Any]:
     if path.is_symlink():
-        raise RuntimeConfigError(f"refusing symlinked JSONC: {path}")
+        raise AgentPackError(f"refusing symlinked JSONC: {path}")
     try:
         raw = path.read_text(encoding="utf-8")
     except (OSError, UnicodeDecodeError) as exc:
-        raise RuntimeConfigError(f"cannot read {path}: {exc}") from exc
+        raise AgentPackError(f"cannot read {path}: {exc}") from exc
     out: list[str] = []
     in_string = False
     escaped = False
@@ -153,13 +157,13 @@ def _read_jsonc(path: Path) -> dict[str, Any]:
     try:
         value = json.loads(cleaned)
     except json.JSONDecodeError as exc:
-        raise RuntimeConfigError(f"invalid JSONC {path}: {exc}") from exc
+        raise AgentPackError(f"invalid JSONC {path}: {exc}") from exc
     if not isinstance(value, dict):
-        raise RuntimeConfigError(f"JSONC root must be an object: {path}")
+        raise AgentPackError(f"JSONC root must be an object: {path}")
     return value
 
 
-def _write_json_atomic(path: Path, value: dict[str, Any]) -> None:
+def _write_json_atomic(path: Path, value: dict[str, Any], *, mode: int = 0o644) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     payload = json.dumps(value, indent=2, ensure_ascii=False) + "\n"
     descriptor, temp_name = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent)
@@ -169,7 +173,7 @@ def _write_json_atomic(path: Path, value: dict[str, Any]) -> None:
             handle.write(payload)
             handle.flush()
             os.fsync(handle.fileno())
-        os.chmod(temp, 0o644)
+        os.chmod(temp, mode)
         os.replace(temp, path)
     finally:
         if temp.exists():
@@ -182,7 +186,7 @@ def _contained(root: Path, candidate: Path) -> Path:
     try:
         resolved.relative_to(root)
     except ValueError as exc:
-        raise RuntimeConfigError(f"path escapes project root: {candidate}") from exc
+        raise AgentPackError(f"path escapes project root: {candidate}") from exc
     return resolved
 
 
@@ -191,7 +195,7 @@ def _resolve_profile_paths(root: Path, values: Any, defaults: list[str]) -> tupl
     paths: list[Path] = []
     for value in raw_values:
         if not isinstance(value, str) or not value.strip():
-            raise RuntimeConfigError("project profile paths must be non-empty strings")
+            raise AgentPackError("project profile paths must be non-empty strings")
         candidate = root / value
         _contained(root, candidate.parent if not candidate.exists() else candidate)
         paths.append(candidate)
@@ -207,7 +211,7 @@ def find_project_root(start: Path) -> Path:
             return candidate
         if (candidate / "AGENTS.md").is_file() and (candidate / ".git").exists():
             return candidate
-    raise RuntimeConfigError(f"no initialized project found from {start}")
+    raise AgentPackError(f"no initialized project found from {start}")
 
 
 def load_project_layout(project: Path) -> ProjectLayout:
@@ -217,7 +221,7 @@ def load_project_layout(project: Path) -> ProjectLayout:
     if profile_path.is_file():
         profile = _read_json(profile_path)
         if profile.get("schema_version") != "1.0":
-            raise RuntimeConfigError(f"unsupported project profile schema: {profile.get('schema_version')!r}")
+            raise AgentPackError(f"unsupported project profile schema: {profile.get('schema_version')!r}")
         config_value = profile.get("capabilities", {})
         if isinstance(config_value, dict):
             config = config_value
@@ -233,22 +237,22 @@ def load_project_layout(project: Path) -> ProjectLayout:
         credential_env_file = _resolve_profile_paths(root, [credential_value], [])[0]
     policy_value = config.get("mcp_client_policy", {})
     if not isinstance(policy_value, dict):
-        raise RuntimeConfigError("mcp_client_policy must be an object")
+        raise AgentPackError("mcp_client_policy must be an object")
     mcp_client_policy: dict[str, dict[str, tuple[str, ...]]] = {}
     for name, raw_policy in policy_value.items():
         if not isinstance(name, str) or not isinstance(raw_policy, dict):
-            raise RuntimeConfigError("MCP client policies must map names to objects")
+            raise AgentPackError("MCP client policies must map names to objects")
         unknown = set(raw_policy) - {"include", "exclude"}
         if unknown:
-            raise RuntimeConfigError(f"MCP policy {name} has unknown fields: {', '.join(sorted(unknown))}")
+            raise AgentPackError(f"MCP policy {name} has unknown fields: {', '.join(sorted(unknown))}")
         parsed: dict[str, tuple[str, ...]] = {}
         for mode in ("include", "exclude"):
             values = raw_policy.get(mode, [])
             if not isinstance(values, list) or not all(isinstance(value, str) and value for value in values):
-                raise RuntimeConfigError(f"MCP policy {name}.{mode} must be a string array")
+                raise AgentPackError(f"MCP policy {name}.{mode} must be a string array")
             parsed[mode] = tuple(values)
         if parsed["include"] and parsed["exclude"]:
-            raise RuntimeConfigError(f"MCP policy {name} cannot set both include and exclude")
+            raise AgentPackError(f"MCP policy {name} cannot set both include and exclude")
         mcp_client_policy[name] = parsed
     destination_skill = _resolve_profile_paths(
         root, [config.get("destination_skill_root", ".agents/skills")], [".agents/skills"]
@@ -346,7 +350,7 @@ def _inventory_plugin(plugin_root: Path, source: str) -> Inventory:
     inventory = Inventory(source=source)
     try:
         manifest, manifest_issues = validate_plugin_manifest(plugin_root)
-    except RuntimeConfigError as exc:
+    except AgentPackError as exc:
         inventory.issues.append(str(exc))
         return inventory
     inventory.plugins.append({
@@ -380,13 +384,13 @@ def _inventory_plugin(plugin_root: Path, source: str) -> Inventory:
                 inventory.issues.append(f"{mcp_path}: MCP schema is not Agent Plugins 1.0.0")
             servers = payload.get("mcpServers", {})
             if not isinstance(servers, dict):
-                raise RuntimeConfigError(f"mcpServers must be an object: {mcp_path}")
+                raise AgentPackError(f"mcpServers must be an object: {mcp_path}")
             for name, raw in sorted(servers.items()):
                 record = _portable_mcp(name, raw)
                 inventory.mcps.append(McpRecord(
                     record.name, record.config, source, record.portable, record.issues, "portable"
                 ))
-        except RuntimeConfigError as exc:
+        except AgentPackError as exc:
             inventory.issues.append(str(exc))
     return inventory
 
@@ -441,7 +445,7 @@ def inventory_project(project: Path) -> Inventory:
             payload = _read_jsonc(mcp_source) if mcp_source.suffix == ".jsonc" else _read_json(mcp_source)
             servers = payload.get("mcpServers", {})
             if not isinstance(servers, dict):
-                raise RuntimeConfigError(f"mcpServers must be an object: {mcp_source}")
+                raise AgentPackError(f"mcpServers must be an object: {mcp_source}")
             for name, raw in sorted(servers.items()):
                 if name in known_mcp_names:
                     inventory.issues.append(f"duplicate MCP name: {name}")
@@ -452,7 +456,7 @@ def inventory_project(project: Path) -> Inventory:
                     record.name, record.config, str(mcp_source), record.portable, record.issues, authority
                 ))
                 known_mcp_names.add(name)
-        except RuntimeConfigError as exc:
+        except AgentPackError as exc:
             inventory.issues.append(str(exc))
 
     _add_duplicate_issues(inventory)
@@ -467,7 +471,7 @@ def _client_skill_roots(client: str, home: Path) -> list[Path]:
         "codebuddy": [home / ".codebuddy" / "skills"],
     }
     if client not in mapping:
-        raise RuntimeConfigError(f"unsupported client: {client}")
+        raise AgentPackError(f"unsupported client: {client}")
     return mapping[client]
 
 
@@ -476,7 +480,19 @@ def _client_plugin_roots(client: str, home: Path) -> list[Path]:
         return [home / ".cursor" / "plugins" / "local"]
     if client == "codex":
         return [home / ".agents" / "plugins" / "plugins"]
+    if client == "claude":
+        return [_claude_plugin_records(home)]
     return []
+
+
+def _claude_plugin_records(home: Path) -> Path:
+    """Install records for Claude Code: one symlink per plugin to its source root."""
+    return home / ".claude" / "agent-pack" / "plugins"
+
+
+def _claude_user_config(home: Path) -> Path:
+    """Claude Code keeps user-scope MCP servers in ~/.claude.json#mcpServers."""
+    return home / ".claude.json"
 
 
 def _codex_mcps(home: Path) -> dict[str, Any]:
@@ -496,7 +512,7 @@ def _json_client_mcps(path: Path) -> dict[str, Any]:
         return {}
     try:
         data = _read_json(path)
-    except RuntimeConfigError:
+    except AgentPackError:
         return {}
     servers = data.get("mcpServers", {})
     return servers if isinstance(servers, dict) else {}
@@ -535,7 +551,7 @@ def inventory_client(client: str, home: Path | None = None) -> Inventory:
     elif client == "cursor":
         servers = _json_client_mcps(home / ".cursor" / "mcp.json")
     elif client == "claude":
-        servers = _json_client_mcps(home / ".claude" / "settings.json")
+        servers = _json_client_mcps(_claude_user_config(home))
     else:
         servers = _json_client_mcps(home / ".codebuddy" / "mcp.json")
     for name, raw in sorted(servers.items()):
@@ -560,7 +576,7 @@ def inventory_source(locator: str, home: Path | None = None) -> Inventory:
         return inventory_project(path)
     if (path / "plugin.json").is_file():
         return _inventory_plugin(path, f"plugin:{path}")
-    raise RuntimeConfigError(f"cannot classify source locator: {locator}")
+    raise AgentPackError(f"cannot classify source locator: {locator}")
 
 
 def _add_duplicate_issues(inventory: Inventory) -> None:
@@ -591,7 +607,7 @@ def _copy_skill(source: Path, destination: Path, *, allowed_root: Path | None = 
                 try:
                     resolved.relative_to(boundary)
                 except ValueError as exc:
-                    raise RuntimeConfigError(f"skill symlink escapes allowed source root: {candidate}") from exc
+                    raise AgentPackError(f"skill symlink escapes allowed source root: {candidate}") from exc
     destination.parent.mkdir(parents=True, exist_ok=True)
     temp = Path(tempfile.mkdtemp(prefix=f".{destination.name}.", dir=destination.parent))
     try:
@@ -603,7 +619,7 @@ def _copy_skill(source: Path, destination: Path, *, allowed_root: Path | None = 
             ignore=lambda _base, names: {name for name in names if name in COPY_IGNORE},
         )
         if destination.exists() or destination.is_symlink():
-            raise RuntimeConfigError(f"destination already exists: {destination}")
+            raise AgentPackError(f"destination already exists: {destination}")
         os.replace(temp, destination)
     finally:
         if temp.exists():
@@ -616,7 +632,7 @@ def _load_destination_mcp(path: Path) -> dict[str, Any]:
     payload = _read_jsonc(path) if path.suffix == ".jsonc" else _read_json(path)
     servers = payload.get("mcpServers")
     if not isinstance(servers, dict):
-        raise RuntimeConfigError(f"destination mcpServers must be an object: {path}")
+        raise AgentPackError(f"destination mcpServers must be an object: {path}")
     if path.suffix != ".jsonc":
         payload["$schema"] = AGENT_PLUGIN_MCP_SCHEMA
     return payload
@@ -638,7 +654,7 @@ def transfer_to_project(
     missing_skills = requested_skills - {item.name for item in selected_skills}
     missing_mcps = requested_mcps - {item.name for item in selected_mcps}
     if missing_skills or missing_mcps:
-        raise RuntimeConfigError(
+        raise AgentPackError(
             "requested items missing: "
             + ", ".join(sorted(missing_skills | missing_mcps))
         )
@@ -648,20 +664,20 @@ def transfer_to_project(
         f"mcp:{item.name}" for item in selected_mcps if not item.portable
     ]
     if blocked:
-        raise RuntimeConfigError("non-portable or secret-bearing items blocked: " + ", ".join(blocked))
+        raise AgentPackError("non-portable or secret-bearing items blocked: " + ", ".join(blocked))
 
     operations: list[dict[str, str]] = []
     for item in selected_skills:
         destination = layout.destination_skill_root / item.name
         if destination.exists() or destination.is_symlink():
-            raise RuntimeConfigError(f"destination already exists: {destination}")
+            raise AgentPackError(f"destination already exists: {destination}")
         operations.append({"action": "copy-skill", "name": item.name, "to": str(destination)})
 
     mcp_payload = _load_destination_mcp(layout.destination_mcp)
     servers = mcp_payload.setdefault("mcpServers", {})
     for item in selected_mcps:
         if item.name in servers:
-            raise RuntimeConfigError(f"MCP destination already exists: {item.name}")
+            raise AgentPackError(f"MCP destination already exists: {item.name}")
         operations.append({"action": "merge-mcp", "name": item.name, "to": str(layout.destination_mcp)})
 
     if apply:
@@ -671,7 +687,7 @@ def transfer_to_project(
             servers[item.name] = item.config
         if selected_mcps:
             if layout.destination_mcp.suffix == ".jsonc":
-                raise RuntimeConfigError("writing legacy JSONC destinations is intentionally unsupported")
+                raise AgentPackError("writing legacy JSONC destinations is intentionally unsupported")
             _write_json_atomic(layout.destination_mcp, mcp_payload)
     return {"ok": True, "applied": apply, "operations": operations}
 
@@ -685,7 +701,7 @@ def _mcp_allowed(layout: ProjectLayout, name: str, client: str) -> bool:
 
 def _env_references(value: Any) -> set[str]:
     if isinstance(value, str):
-        return set(ENV_REFERENCE_RE.findall(value))
+        return set(ENV_REFERENCE_RE.findall(value)) - RESERVED_ENV_PLACEHOLDERS
     if isinstance(value, list):
         result: set[str] = set()
         for item in value:
@@ -701,10 +717,10 @@ def _env_references(value: Any) -> set[str]:
 
 def _dotenv_keys(path: Path) -> set[str]:
     if path.is_symlink() or not path.is_file():
-        raise RuntimeConfigError(f"credential env file missing or unsafe: {path}")
+        raise AgentPackError(f"credential env file missing or unsafe: {path}")
     mode = stat.S_IMODE(path.stat().st_mode)
     if mode & 0o077:
-        raise RuntimeConfigError(f"credential env file must be mode 0600 or stricter: {path}")
+        raise AgentPackError(f"credential env file must be mode 0600 or stricter: {path}")
     keys: set[str] = set()
     try:
         for raw_line in path.read_text(encoding="utf-8").splitlines():
@@ -718,7 +734,7 @@ def _dotenv_keys(path: Path) -> set[str]:
             if separator and re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", key):
                 keys.add(key)
     except (OSError, UnicodeDecodeError) as exc:
-        raise RuntimeConfigError(f"cannot inspect credential env file {path}: {exc}") from exc
+        raise AgentPackError(f"cannot inspect credential env file {path}: {exc}") from exc
     return keys
 
 
@@ -735,7 +751,7 @@ def _portable_package_from_inventory(
         if item.authority == "portable" and not item.portable
     ]
     if invalid:
-        raise RuntimeConfigError("cannot package non-portable items: " + ", ".join(sorted(invalid)))
+        raise AgentPackError("cannot package non-portable items: " + ", ".join(sorted(invalid)))
     project_root: Path | None = None
     layout: ProjectLayout | None = None
     if inventory.source.startswith("project:"):
@@ -746,8 +762,8 @@ def _portable_package_from_inventory(
         "$schema": AGENT_PLUGIN_SCHEMA,
         "name": package_name,
         "version": "1.0.0",
-        "description": f"Project capabilities exported by project-runtime ({package_name}).",
-        "keywords": ["project-runtime", "agent-skills", "mcp"],
+        "description": f"Project capabilities exported by agent-pack ({package_name}).",
+        "keywords": ["agent-pack", "agent-skills", "mcp"],
     })
     skills_root = destination / "skills"
     skills_root.mkdir()
@@ -761,11 +777,11 @@ def _portable_package_from_inventory(
             if isinstance(value, str):
                 if "__PROJECT_DIR__" in value:
                     if not source_path.is_file():
-                        raise RuntimeConfigError(f"cannot resolve __PROJECT_DIR__ for MCP {item.name}")
+                        raise AgentPackError(f"cannot resolve __PROJECT_DIR__ for MCP {item.name}")
                     value = value.replace("__PROJECT_DIR__", str(source_path.parent.resolve()))
                 if "__REPO_ROOT__" in value:
                     if project_root is None:
-                        raise RuntimeConfigError(f"cannot resolve __REPO_ROOT__ for MCP {item.name}")
+                        raise AgentPackError(f"cannot resolve __REPO_ROOT__ for MCP {item.name}")
                     value = value.replace("__REPO_ROOT__", str(project_root.resolve()))
                 return value
             if isinstance(value, list):
@@ -785,13 +801,13 @@ def _portable_package_from_inventory(
         required_env.update(_env_references(item.config))
     if required_env:
         if layout is None or layout.credential_env_file is None:
-            raise RuntimeConfigError(
+            raise AgentPackError(
                 "MCP environment references require capabilities.credential_env_file: "
                 + ", ".join(sorted(required_env))
             )
         missing = required_env - _dotenv_keys(layout.credential_env_file)
         if missing:
-            raise RuntimeConfigError("credential env file is missing keys: " + ", ".join(sorted(missing)))
+            raise AgentPackError("credential env file is missing keys: " + ", ".join(sorted(missing)))
 
     rendered_mcps: dict[str, dict[str, Any]] = {}
     launcher_copied = False
@@ -802,7 +818,7 @@ def _portable_package_from_inventory(
             rendered_mcps[item.name] = config
             continue
         if config.get("type") != "stdio":
-            raise RuntimeConfigError(f"environment-referenced remote MCP is unsupported: {item.name}")
+            raise AgentPackError(f"environment-referenced remote MCP is unsupported: {item.name}")
         runtime_root = destination / "runtime"
         if not launcher_copied:
             runtime_root.mkdir(exist_ok=True)
@@ -837,18 +853,27 @@ def _codex_adapter(package_root: Path) -> None:
     manifest = _read_json(package_root / "plugin.json")
     codex_dir = package_root / ".codex-plugin"
     codex_dir.mkdir(exist_ok=True)
-    codex_manifest = {
-        "name": manifest["name"],
-        "version": manifest.get("version", "1.0.0"),
-        "description": manifest.get("description", "Project capabilities"),
-        "skills": "./skills/",
-    }
+    codex_manifest_path = codex_dir / "plugin.json"
+    if codex_manifest_path.exists():
+        codex_manifest = _read_json(codex_manifest_path)
+    else:
+        codex_manifest = {}
+    # Identity fields are owned by the portable plugin.json and are always
+    # regenerated here so the Codex adapter can never drift from the
+    # authoritative manifest (only Codex-specific presentation such as the
+    # `interface` block is preserved as authored).
+    codex_manifest["name"] = manifest["name"]
+    codex_manifest["version"] = manifest.get("version", "1.0.0")
+    codex_manifest.setdefault(
+        "description", manifest.get("description", "Project capabilities")
+    )
+    codex_manifest.setdefault("skills", "./skills/")
     mcp_path = package_root / "mcp.json"
     if not mcp_path.exists():
-        _write_json_atomic(codex_dir / "plugin.json", codex_manifest)
+        _write_json_atomic(codex_manifest_path, codex_manifest)
         return
-    codex_manifest["mcpServers"] = "./.mcp.json"
-    _write_json_atomic(codex_dir / "plugin.json", codex_manifest)
+    codex_manifest.setdefault("mcpServers", "./.mcp.json")
+    _write_json_atomic(codex_manifest_path, codex_manifest)
     mcp = _read_json(mcp_path)
     codex_mcps: dict[str, Any] = {}
     for name, config in mcp.get("mcpServers", {}).items():
@@ -866,7 +891,7 @@ def _package_name(root: Path) -> str:
     name = re.sub(r"[^a-z0-9]+", "-", root.name.lower()).strip("-")
     name = name or "project-capabilities"
     if not PLUGIN_NAME_RE.fullmatch(name):
-        raise RuntimeConfigError(f"cannot derive portable package name from {root.name!r}")
+        raise AgentPackError(f"cannot derive portable package name from {root.name!r}")
     return name
 
 
@@ -875,27 +900,29 @@ def _client_package_destination(client: str, home: Path, package_name: str) -> P
         return home / ".cursor" / "plugins" / "local" / package_name
     if client == "codex":
         return home / ".agents" / "plugins" / "plugins" / package_name
-    raise RuntimeConfigError(f"sync adapter not implemented for client: {client}")
+    if client == "claude":
+        return _claude_plugin_records(home) / package_name
+    raise AgentPackError(f"sync adapter not implemented for client: {client}")
 
 
 def _tree_fingerprint(root: Path) -> str:
     """Return a stable content fingerprint without following symlinks."""
     digest = hashlib.sha256()
     if root.is_symlink() or not root.is_dir():
-        raise RuntimeConfigError(f"expected a real directory: {root}")
+        raise AgentPackError(f"expected a real directory: {root}")
     for base, dirs, files in os.walk(root, followlinks=False):
         dirs[:] = sorted(name for name in dirs if name not in COPY_IGNORE)
         for name in sorted(files):
             path = Path(base) / name
             relative = path.relative_to(root)
             if path.is_symlink():
-                raise RuntimeConfigError(f"package contains symlink: {path}")
+                raise AgentPackError(f"package contains symlink: {path}")
             digest.update(str(relative).encode("utf-8"))
             digest.update(b"\0")
             try:
                 digest.update(path.read_bytes())
             except OSError as exc:
-                raise RuntimeConfigError(f"cannot fingerprint {path}: {exc}") from exc
+                raise AgentPackError(f"cannot fingerprint {path}: {exc}") from exc
             digest.update(b"\0")
     return digest.hexdigest()
 
@@ -916,6 +943,20 @@ def _source_matches_destination(source: Path, destination: Path) -> bool:
             except OSError:
                 return False
     return True
+
+
+def _source_matches_client_destination(
+    source: Path,
+    destination: Path,
+    client: str,
+) -> bool:
+    if client != "codex":
+        return _source_matches_destination(source, destination)
+    with tempfile.TemporaryDirectory(prefix="agent-pack-match-") as temporary:
+        staged = Path(temporary) / source.name
+        shutil.copytree(source, staged, symlinks=False, ignore=shutil.ignore_patterns(*COPY_IGNORE))
+        _codex_adapter(staged)
+        return _source_matches_destination(staged, destination)
 
 
 def _build_package(inventory: Inventory, package_name: str, parent: Path, client: str) -> Path:
@@ -939,16 +980,20 @@ def install_plugin(
     plugin = plugin.expanduser().resolve()
     manifest, issues = validate_plugin_manifest(plugin)
     if issues:
-        raise RuntimeConfigError("invalid plugin: " + "; ".join(issues))
+        raise AgentPackError("invalid plugin: " + "; ".join(issues))
     name = manifest["name"]
     _tree_fingerprint(plugin)
     home = (home or Path.home()).expanduser().resolve()
+    if client == "claude":
+        return _install_plugin_claude(
+            plugin, name, home=home, apply=apply, replace=replace, recovery_root=recovery_root
+        )
     destination = _client_package_destination(client, home, name)
     action = "install-plugin"
     if destination.exists() or destination.is_symlink():
-        if not _source_matches_destination(plugin, destination):
+        if not _source_matches_client_destination(plugin, destination, client):
             if not replace:
-                raise RuntimeConfigError(f"client package already exists with different content: {destination}")
+                raise AgentPackError(f"client package already exists with different content: {destination}")
             action = "replace-plugin"
         else:
             action = "keep-plugin"
@@ -958,13 +1003,13 @@ def install_plugin(
         if action in {"install-plugin", "replace-plugin"}:
             destination.parent.mkdir(parents=True, exist_ok=True)
             if action == "replace-plugin":
-                recovery_base = (recovery_root or home / ".project-runtime" / "recovery").expanduser().resolve()
+                recovery_base = (recovery_root or home / ".agent-pack" / "recovery").expanduser().resolve()
                 recovery_base.mkdir(parents=True, exist_ok=True)
                 stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%S.%fZ")
                 archived = recovery_base / f"{stamp}-{client}-{name}" / "replaced-plugin" / name
                 archived.parent.mkdir(parents=True, exist_ok=True)
                 os.replace(destination, archived)
-            temp_parent = Path(tempfile.mkdtemp(prefix=".project-runtime-bootstrap-", dir=destination.parent))
+            temp_parent = Path(tempfile.mkdtemp(prefix=".agent-pack-bootstrap-", dir=destination.parent))
             staged = temp_parent / name
             try:
                 shutil.copytree(plugin, staged, symlinks=False, ignore=shutil.ignore_patterns(*COPY_IGNORE))
@@ -981,6 +1026,151 @@ def install_plugin(
         if client == "codex":
             _update_personal_marketplace(home, name)
     return {"ok": True, "applied": apply, "operations": [operation]}
+
+
+def _claude_mcp_config(config: dict[str, Any], plugin_root: Path, data_root: Path) -> dict[str, Any]:
+    """Project a portable MCP entry onto Claude Code's ``mcpServers`` schema."""
+
+    def expand(value: Any) -> Any:
+        if isinstance(value, str):
+            return value.replace("${PLUGIN_ROOT}", str(plugin_root)).replace(
+                "${PLUGIN_DATA}", str(data_root)
+            )
+        if isinstance(value, list):
+            return [expand(child) for child in value]
+        if isinstance(value, dict):
+            return {key: expand(child) for key, child in value.items()}
+        return value
+
+    item = expand(dict(config))
+    # Claude Code stdio entries have no working-directory field; plugin MCPs
+    # must address their files through ${PLUGIN_ROOT} instead.
+    item.pop("cwd", None)
+    if item.get("type") == "streamable-http":
+        item["type"] = "http"
+    return item
+
+
+def _install_plugin_claude(
+    plugin: Path,
+    name: str,
+    *,
+    home: Path,
+    apply: bool,
+    replace: bool,
+    recovery_root: Path | None,
+) -> dict[str, Any]:
+    """Install a plugin into Claude Code as live links plus user-scope MCP entries.
+
+    Claude Code has no Agent Plugins loader, so the plugin is projected onto the
+    three things it does read: ``~/.claude/skills/<skill>`` (symlink to the
+    source skill), ``~/.claude.json#mcpServers`` (user scope), and an install
+    record ``~/.claude/agent-pack/plugins/<name>`` (symlink to the source root)
+    that inventory uses to report the installed version.
+    """
+    record = _claude_plugin_records(home) / name
+    links: list[tuple[str, str, Path, Path]] = [("plugin", name, record, plugin)]
+    skills_root = plugin / "skills"
+    if skills_root.is_dir() and not skills_root.is_symlink():
+        for child in sorted(skills_root.iterdir(), key=lambda item: item.name):
+            if child.is_dir() and not child.name.startswith(".") and (child / "SKILL.md").is_file():
+                links.append(("skill", child.name, home / ".claude" / "skills" / child.name, child))
+
+    config_path = _claude_user_config(home)
+    servers: dict[str, dict[str, Any]] = {}
+    mcp_path = plugin / "mcp.json"
+    if mcp_path.is_file():
+        data_root = home / ".claude" / "agent-pack" / "data" / name
+        for server, raw in sorted(_read_json(mcp_path).get("mcpServers", {}).items()):
+            parsed = _portable_mcp(server, raw)
+            if not parsed.portable:
+                raise AgentPackError(f"MCP {server} is not portable: " + "; ".join(parsed.issues))
+            servers[server] = _claude_mcp_config(parsed.config, record, data_root)
+
+    config: dict[str, Any] = {}
+    if servers and config_path.exists():
+        if config_path.is_symlink():
+            raise AgentPackError(f"refusing to edit symlinked Claude config: {config_path}")
+        config = _read_json(config_path)
+    existing_servers = config.get("mcpServers", {})
+    if not isinstance(existing_servers, dict):
+        raise AgentPackError(f"mcpServers must be an object: {config_path}")
+
+    operations: list[dict[str, str]] = []
+    conflicts: list[str] = []
+    for kind, item_name, path, target in links:
+        if path.is_symlink() and path.resolve() == target.resolve():
+            action = "keep"
+        elif path.exists() or path.is_symlink():
+            action = "replace"
+            conflicts.append(f"{kind} {item_name}: {path}")
+        else:
+            action = "link"
+        operations.append({"action": f"{action}-{kind}", "client": "claude", "name": item_name, "to": str(path)})
+    for server, rendered in servers.items():
+        current = existing_servers.get(server)
+        if current is None:
+            action = "add"
+        elif current == rendered:
+            action = "keep"
+        else:
+            action = "replace"
+            conflicts.append(f"mcp {server}: {config_path}")
+        operations.append({"action": f"{action}-mcp", "client": "claude", "name": server, "to": str(config_path)})
+    if conflicts and not replace:
+        raise AgentPackError("Claude client already has different content: " + "; ".join(conflicts))
+    result: dict[str, Any] = {"ok": True, "applied": apply, "operations": operations}
+    if not apply:
+        return result
+
+    transaction: Path | None = None
+    if conflicts:
+        recovery_base = (recovery_root or home / ".agent-pack" / "recovery").expanduser().resolve()
+        stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%S.%fZ")
+        transaction = recovery_base / f"{stamp}-claude-{name}"
+        transaction.mkdir(parents=True, mode=0o700)
+        result["recovery"] = str(transaction)
+    moved: list[tuple[Path, Path]] = []
+    created: list[Path] = []
+    original_config = json.loads(json.dumps(config))
+    config_written = False
+    try:
+        for (kind, item_name, path, target), operation in zip(links, operations):
+            if operation["action"].startswith("keep-"):
+                continue
+            if operation["action"].startswith("replace-"):
+                assert transaction is not None
+                archived = transaction / f"replaced-{kind}s" / item_name
+                archived.parent.mkdir(parents=True, exist_ok=True)
+                os.replace(path, archived)
+                moved.append((archived, path))
+            path.parent.mkdir(parents=True, exist_ok=True)
+            os.symlink(target, path, target_is_directory=True)
+            created.append(path)
+        changed = {
+            server: rendered for server, rendered in servers.items()
+            if existing_servers.get(server) != rendered
+        }
+        if changed:
+            replaced = {server: existing_servers[server] for server in changed if server in existing_servers}
+            if replaced:
+                assert transaction is not None
+                _write_json_atomic(transaction / "replaced-mcp.json", {"mcpServers": replaced}, mode=0o600)
+            config.setdefault("mcpServers", {}).update(changed)
+            mode = stat.S_IMODE(config_path.stat().st_mode) if config_path.exists() else 0o600
+            _write_json_atomic(config_path, config, mode=mode)
+            config_written = True
+    except Exception as exc:
+        if config_written:
+            _write_json_atomic(config_path, original_config, mode=0o600)
+        for path in reversed(created):
+            if path.is_symlink():
+                path.unlink()
+        for archived, original in reversed(moved):
+            if archived.exists() and not original.exists():
+                os.replace(archived, original)
+        raise AgentPackError(f"claude install rolled back: {exc}") from exc
+    return result
 
 
 def _component_state(
@@ -1005,7 +1195,7 @@ def _component_state(
         try:
             expected_hash = _tree_fingerprint(Path(expected.path))
             hashes = [_tree_fingerprint(Path(item.path)) for item in actual]
-        except RuntimeConfigError:
+        except AgentPackError:
             states["conflict"].append({"kind": "skill", "name": name, "copies": len(actual)})
             continue
         target = "exact" if len(actual) == 1 and hashes[0] == expected_hash else "conflict"
@@ -1052,8 +1242,13 @@ def reconcile_project(
     retire_plugins: Iterable[str] = (),
     recovery_root: Path | None = None,
     apply: bool = False,
+    retire_only: bool = False,
 ) -> dict[str, Any]:
-    """Reconcile one project package and explicitly selected legacy components."""
+    """Reconcile one project package and explicitly selected legacy components.
+
+    ``retire_only`` archives the selected legacy components without installing
+    or replacing the project package itself.
+    """
     layout = load_project_layout(project)
     authority = inventory_project(layout.root)
     package_name = _package_name(layout.root)
@@ -1071,25 +1266,29 @@ def reconcile_project(
     for name in sorted(set(retire_skills)):
         path = actual_skills.get(name)
         if path is None:
-            raise RuntimeConfigError(f"retire Skill not installed: {name}")
+            raise AgentPackError(f"retire Skill not installed: {name}")
         if destination.exists():
             try:
                 path.resolve().relative_to(destination.resolve())
             except ValueError:
                 pass
             else:
-                raise RuntimeConfigError(f"cannot retire Skill inside active project package: {name}")
+                raise AgentPackError(f"cannot retire Skill inside active project package: {name}")
         retirement_targets.append(("skill", name, path))
     for name in sorted(set(retire_plugins)):
         path = actual_plugins.get(name)
         if path is None:
-            raise RuntimeConfigError(f"retire plugin not installed: {name}")
+            raise AgentPackError(f"retire plugin not installed: {name}")
         retirement_targets.append(("plugin", name, path))
 
+    if retire_only and not retirement_targets:
+        raise AgentPackError("retire-only reconcile needs at least one --retire-skill or --retire-plugin")
     package_action = "install-plugin"
-    needs_package = True
-    if destination.exists() or destination.is_symlink():
-        with tempfile.TemporaryDirectory(prefix="project-runtime-plan-") as temporary:
+    needs_package = not retire_only
+    if retire_only:
+        package_action = "skip-plugin"
+    elif destination.exists() or destination.is_symlink():
+        with tempfile.TemporaryDirectory(prefix="agent-pack-plan-") as temporary:
             expected = _build_package(authority, package_name, Path(temporary), client)
             if _tree_fingerprint(expected) == _tree_fingerprint(destination):
                 package_action = "keep-plugin"
@@ -1097,7 +1296,7 @@ def reconcile_project(
             else:
                 package_action = "replace-plugin"
 
-    operations: list[dict[str, str]] = [
+    operations: list[dict[str, str]] = [] if retire_only else [
         {"action": package_action, "client": client, "name": package_name, "to": str(destination)}
     ]
     operations.extend(
@@ -1107,7 +1306,7 @@ def reconcile_project(
     if not apply:
         return {"ok": True, "applied": False, "states": states, "operations": operations}
 
-    recovery_base = (recovery_root or home / ".project-runtime" / "recovery").expanduser().resolve()
+    recovery_base = (recovery_root or home / ".agent-pack" / "recovery").expanduser().resolve()
     recovery_base.mkdir(parents=True, exist_ok=True)
     stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%S.%fZ")
     transaction = recovery_base / f"{stamp}-{client}-{package_name}"
@@ -1122,7 +1321,7 @@ def reconcile_project(
                 archived.parent.mkdir(parents=True)
                 os.replace(destination, archived)
                 moved.append((archived, destination))
-            staging_parent = Path(tempfile.mkdtemp(prefix=".project-runtime-", dir=destination.parent))
+            staging_parent = Path(tempfile.mkdtemp(prefix=".agent-pack-", dir=destination.parent))
             try:
                 staged = _build_package(authority, package_name, staging_parent, client)
                 os.replace(staged, destination)
@@ -1132,7 +1331,7 @@ def reconcile_project(
                     shutil.rmtree(staging_parent)
         for kind, name, path in retirement_targets:
             if path == destination:
-                raise RuntimeConfigError(f"cannot retire active project package: {name}")
+                raise AgentPackError(f"cannot retire active project package: {name}")
             archived = transaction / (kind + "s") / name
             archived.parent.mkdir(parents=True, exist_ok=True)
             os.replace(path, archived)
@@ -1146,7 +1345,7 @@ def reconcile_project(
             if archived.exists() and not original.exists():
                 original.parent.mkdir(parents=True, exist_ok=True)
                 os.replace(archived, original)
-        raise RuntimeConfigError(f"reconcile rolled back: {exc}") from exc
+        raise AgentPackError(f"reconcile rolled back: {exc}") from exc
     return {
         "ok": True, "applied": True, "states": states, "operations": operations,
         "recovery": str(transaction),
@@ -1171,7 +1370,7 @@ def _update_personal_marketplace(home: Path, package_name: str) -> None:
         payload = {"name": "personal", "interface": {"displayName": "Personal"}, "plugins": []}
     plugins = payload.setdefault("plugins", [])
     if not isinstance(plugins, list):
-        raise RuntimeConfigError(f"marketplace plugins must be an array: {marketplace}")
+        raise AgentPackError(f"marketplace plugins must be an array: {marketplace}")
     plugins[:] = [item for item in plugins if not isinstance(item, dict) or item.get("name") != package_name]
     plugins.append({
         "name": package_name,
@@ -1195,6 +1394,20 @@ def doctor(project: Path) -> dict[str, Any]:
     configured_names = {item.name for item in inventory.mcps}
     unknown_policies = set(layout.mcp_client_policy) - configured_names
     issues.extend(f"MCP client policy references unknown server: {name}" for name in sorted(unknown_policies))
+    for plugin in inventory.plugins:
+        adapter_path = Path(plugin["path"]) / ".codex-plugin" / "plugin.json"
+        if not adapter_path.is_file() or adapter_path.is_symlink():
+            continue
+        try:
+            adapter_version = _read_json(adapter_path).get("version")
+        except AgentPackError as exc:
+            issues.append(str(exc))
+            continue
+        if adapter_version != plugin["version"]:
+            issues.append(
+                f"plugin {plugin['name']}: Codex adapter version {adapter_version!r} "
+                f"does not match plugin.json version {plugin['version']!r}"
+            )
     required_env: set[str] = set()
     for item in inventory.mcps:
         if item.portable:
@@ -1206,7 +1419,7 @@ def doctor(project: Path) -> dict[str, Any]:
             try:
                 missing = required_env - _dotenv_keys(layout.credential_env_file)
                 issues.extend(f"credential env file missing key: {name}" for name in sorted(missing))
-            except RuntimeConfigError as exc:
+            except AgentPackError as exc:
                 issues.append(str(exc))
     return {
         "ok": not issues,
@@ -1240,7 +1453,7 @@ def _print(value: dict[str, Any], output: str) -> None:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="project-runtime-config")
+    parser = argparse.ArgumentParser(prog="agent-pack")
     parser.add_argument("--output", choices=("text", "json"), default="text")
     sub = parser.add_subparsers(dest="command", required=True)
 
@@ -1267,7 +1480,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     bootstrap_parser = sub.add_parser("bootstrap")
     bootstrap_parser.add_argument("--plugin", type=Path, required=True)
-    bootstrap_parser.add_argument("--client", choices=("codex", "cursor"), required=True)
+    bootstrap_parser.add_argument("--client", choices=("codex", "cursor", "claude"), required=True)
     bootstrap_parser.add_argument("--home", type=Path)
     bootstrap_parser.add_argument("--apply", action="store_true")
     bootstrap_parser.add_argument("--replace", action="store_true")
@@ -1280,6 +1493,10 @@ def build_parser() -> argparse.ArgumentParser:
     reconcile_parser.add_argument("--retire-skill", action="append", default=[])
     reconcile_parser.add_argument("--retire-plugin", action="append", default=[])
     reconcile_parser.add_argument("--recovery-root", type=Path)
+    reconcile_parser.add_argument(
+        "--retire-only", action="store_true",
+        help="archive the selected legacy components without installing the project package",
+    )
     reconcile_parser.add_argument("--apply", action="store_true")
     return parser
 
@@ -1295,7 +1512,7 @@ def main(argv: list[str] | None = None) -> int:
             result = doctor(args.project)
         elif args.command == "transfer":
             if not args.skill and not args.mcp:
-                raise RuntimeConfigError("select at least one --skill or --mcp")
+                raise AgentPackError("select at least one --skill or --mcp")
             result = transfer_to_project(
                 inventory_source(args.source, args.home),
                 args.to_project,
@@ -1325,10 +1542,11 @@ def main(argv: list[str] | None = None) -> int:
                 retire_plugins=args.retire_plugin,
                 recovery_root=args.recovery_root,
                 apply=args.apply,
+                retire_only=args.retire_only,
             )
         _print(result, args.output)
         return 0 if result.get("ok", True) else 1
-    except RuntimeConfigError as exc:
+    except AgentPackError as exc:
         error = {"ok": False, "error": str(exc)}
         _print(error, args.output)
         if args.output == "text":

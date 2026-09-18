@@ -44,23 +44,30 @@ class InitProjectTests(unittest.TestCase):
             self.assertFalse(payload["applied"])
             self.assertFalse((root / "AGENTS.md").exists())
 
-    def test_apply_creates_v5_skeleton(self) -> None:
+    def test_apply_creates_v6_skeleton(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             result = self.run_script(root, "--apply")
             self.assertEqual(result.returncode, 0, result.stderr)
-            profile = json.loads((root / ".agents/moe.sakanano.project-runtime/project.json").read_text())
+            profile = json.loads((root / ".agents/moe.sakanano.agent-pack/project.json").read_text())
+            self.assertFalse((root / ".agents/moe.sakanano.project-runtime").exists())
             self.assertEqual(profile["schema_version"], "1.0")
-            self.assertEqual(profile["initializer_version"], "5.2.0")
+            self.assertEqual(profile["initializer_version"], "6.0.0")
             self.assertEqual(profile["$schema"], "https://skill.sakanano.moe/skills/agents-init/project.schema.json")
-            self.assertEqual(profile["runtime"]["skill"], "project-runtime")
-            self.assertEqual(profile["runtime"]["plugin"], "agents-init")
+            self.assertEqual(profile["runtime"]["skill"], "project-orchestrator")
+            self.assertEqual(profile["runtime"]["plugin"], "project-orchestrator")
+            self.assertEqual(profile["runtime"]["capability_manager"], "agent-pack")
             self.assertEqual(profile["runtime"]["distribution"], "bundled")
             self.assertIsNone(profile["opinion"]["provider"])
             self.assertTrue((root / "docs/drafts/.gitkeep").exists())
             payload = json.loads(result.stdout)
             self.assertEqual(payload["runtime"]["source"], "bundled")
-            self.assertIn("# Example Project — Agent 执行入口", (root / "AGENTS.md").read_text())
+            self.assertTrue(payload["runtime"]["lifecycle"].startswith("project-orchestrator@"))
+            self.assertTrue(payload["runtime"]["capabilities"].startswith("agent-pack@"))
+            agents = (root / "AGENTS.md").read_text()
+            self.assertIn("# Example Project — Agent 执行入口", agents)
+            self.assertIn("project-orchestrator", agents)
+            self.assertNotIn("project-runtime", agents)
             self.assertIn("# 项目专属规则", (root / "AGENT.RULES.md").read_text())
 
     def test_generated_markdown_uses_named_chinese_template_blocks(self) -> None:
@@ -168,6 +175,135 @@ class InitProjectTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertNotEqual((root / "AGENTS.md").read_text(), "legacy\n")
             self.assertEqual((recovery / "AGENTS.md").read_text(), "legacy\n")
+
+    def write_v5_profile(self, root: Path) -> Path:
+        legacy = root / ".agents/moe.sakanano.project-runtime/project.json"
+        legacy.parent.mkdir(parents=True)
+        legacy.write_text(json.dumps({
+            "schema_version": "1.0",
+            "initializer_version": "5.0.0",
+            "name": "Legacy",
+            "profile": {"project_type": ["docs"], "vcs": "github", "stack": ["python"], "runtime": "local", "agent_cli": ["codex"]},
+            "runtime": {
+                "skill": "project-runtime",
+                "required": True,
+                "session_bootstrap": "make brief",
+                "commit_policy": "explicit",
+                "push_policy": "explicit",
+            },
+            "opinion": {"provider": "opinion-workflow", "project_overlay": "OPINION.md", "strict_mode": "smart"},
+            "capabilities": {
+                "plugin_roots": [".agents", "vendor/plugins"],
+                "plugin_dirs": [],
+                "skill_roots": [".agents/skills"],
+                "mcp_sources": [".agents/mcp.json"],
+                "native_mcp_sources": ["config/mcp.jsonc"],
+                "credential_env_file": ".env",
+                "mcp_client_policy": {"tapd": {"exclude": ["claude"]}},
+                "destination_skill_root": ".agents/skills",
+                "destination_mcp": ".agents/mcp.json",
+            },
+            "work": {"task": {"root": "tasks"}},
+            "privacy": {"forbidden_default_reads": [".env"], "generated_outputs": []},
+        }), encoding="utf-8")
+        return legacy
+
+    def test_migrate_upgrades_v5_profile_and_retires_it_to_recovery(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary, tempfile.TemporaryDirectory() as backup:
+            root = Path(temporary)
+            legacy = self.write_v5_profile(root)
+            original = legacy.read_text(encoding="utf-8")
+            recovery = Path(backup) / "migration"
+            result = self.run_script(root, "--mode", "migrate", "--recovery-dir", str(recovery), "--apply")
+            self.assertEqual(result.returncode, 0, result.stderr or result.stdout)
+            payload = json.loads(result.stdout)
+            self.assertEqual(payload["retire"], [".agents/moe.sakanano.project-runtime/project.json"])
+            self.assertFalse(legacy.exists())
+            self.assertFalse(legacy.parent.exists())
+            self.assertEqual((recovery / ".agents/moe.sakanano.project-runtime/project.json").read_text(), original)
+            profile = json.loads((root / ".agents/moe.sakanano.agent-pack/project.json").read_text())
+            self.assertEqual(profile["initializer_version"], "6.0.0")
+            self.assertEqual(profile["runtime"]["skill"], "project-orchestrator")
+            self.assertEqual(profile["runtime"]["capability_manager"], "agent-pack")
+            self.assertEqual(profile["runtime"]["session_bootstrap"], "make brief")
+            self.assertEqual(profile["name"], "Legacy")
+            self.assertEqual(profile["capabilities"]["plugin_roots"], [".agents", "vendor/plugins"])
+            self.assertEqual(profile["capabilities"]["mcp_client_policy"], {"tapd": {"exclude": ["claude"]}})
+            self.assertEqual(profile["work"], {"task": {"root": "tasks"}})
+            self.assertEqual(profile["opinion"]["provider"], "opinion-workflow")
+
+    def test_migrate_v5_profile_requires_recovery_dir(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            legacy = self.write_v5_profile(root)
+            result = self.run_script(root, "--mode", "migrate", "--apply")
+            self.assertEqual(result.returncode, 2)
+            self.assertTrue(legacy.exists())
+            self.assertFalse((root / ".agents/moe.sakanano.agent-pack").exists())
+
+    def test_migrate_skips_symlinked_skill_dir_but_still_upgrades_profile(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary, tempfile.TemporaryDirectory() as backup, \
+                tempfile.TemporaryDirectory() as outside:
+            root = Path(temporary)
+            self.write_v5_profile(root)
+            (root / ".agents/skills").symlink_to(Path(outside), target_is_directory=True)
+            result = self.run_script(
+                root, "--mode", "migrate", "--recovery-dir", str(Path(backup) / "r"), "--apply"
+            )
+            self.assertEqual(result.returncode, 0, result.stderr or result.stdout)
+            payload = json.loads(result.stdout)
+            self.assertEqual(payload["skipped_symlinked_parents"], [".agents/skills/.gitkeep"])
+            self.assertEqual(list(Path(outside).iterdir()), [])
+            self.assertTrue((root / ".agents/skills").is_symlink())
+            self.assertTrue((root / ".agents/moe.sakanano.agent-pack/project.json").is_file())
+
+    def test_migrate_refuses_replace_through_symlinked_parent(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary, tempfile.TemporaryDirectory() as backup, \
+                tempfile.TemporaryDirectory() as outside:
+            root = Path(temporary)
+            (root / ".agents").mkdir()
+            (root / ".agents/skills").symlink_to(Path(outside), target_is_directory=True)
+            result = self.run_script(
+                root, "--mode", "migrate", "--replace", ".agents/skills/.gitkeep",
+                "--recovery-dir", str(Path(backup) / "r"), "--apply",
+            )
+            self.assertEqual(result.returncode, 2)
+            self.assertIn("symlinked parent", json.loads(result.stdout)["error"])
+            self.assertEqual(list(Path(outside).iterdir()), [])
+
+    def test_migrate_skip_omits_unwanted_skeleton_files(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            result = self.run_script(
+                root, "--mode", "migrate",
+                "--skip", "docs/refs/README.md", "--skip", "docs/drafts/.gitkeep", "--apply",
+            )
+            self.assertEqual(result.returncode, 0, result.stderr or result.stdout)
+            self.assertFalse((root / "docs").exists())
+            self.assertTrue((root / "AGENTS.md").is_file())
+            self.assertEqual(
+                json.loads(result.stdout)["skipped_by_request"],
+                ["docs/drafts/.gitkeep", "docs/refs/README.md"],
+            )
+
+    def test_skip_rejected_in_init_mode_and_for_profile(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            init = self.run_script(root, "--skip", "docs/refs/README.md")
+            self.assertEqual(init.returncode, 2)
+            profile = self.run_script(
+                root, "--mode", "migrate", "--skip", ".agents/moe.sakanano.agent-pack/project.json"
+            )
+            self.assertEqual(profile.returncode, 2)
+
+    def test_init_mode_refuses_v5_project(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            self.write_v5_profile(root)
+            result = self.run_script(root, "--apply")
+            self.assertEqual(result.returncode, 2)
+            self.assertEqual(json.loads(result.stdout)["code"], "migrate-required")
+            self.assertFalse((root / "AGENTS.md").exists())
 
     def test_migrate_replacement_requires_recovery(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

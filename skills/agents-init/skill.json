@@ -1,21 +1,21 @@
 {
   "id": "agents-init",
-  "name": "agents-init v5 / Project Profile 初始化器",
-  "description": "创建或迁移通用项目骨架与 Project Profile；运行期项目管理交给 project-runtime，Opinion 独立负责指导和审查。",
+  "name": "agents-init v6 / Project Profile 初始化与迁移",
+  "description": "创建或迁移通用项目骨架与 Project Profile；生命周期交给 project-orchestrator，Plugin/Skill/MCP 交给 agent-pack，Opinion 独立负责指导和审查。",
   "schema_version": "1.0",
-  "version": "5.2.0",
+  "version": "6.0.0",
   "status": "stable",
   "language": "zh-CN",
   "license": "CC-BY-4.0",
   "created_at": "2026-07-02",
-  "updated_at": "2026-08-13",
+  "updated_at": "2026-09-18",
   "authors": [{"name": "lc4t"}],
   "tags": ["agents", "project-init", "project-profile", "agent-plugins", "codex", "claude-code", "cursor"],
   "template": {
     "path": "./AGENT.template.md",
-    "version": "v5.2",
-    "title": "AGENT.template.md v5.2",
-    "design_principle": "初始化、运行期项目管理、Opinion 审查与领域交付职责分离。"
+    "version": "v6.0",
+    "title": "AGENT.template.md v6.0",
+    "design_principle": "初始化、生命周期编排、扩展能力管理、Opinion 审查与领域交付职责分离。"
   },
   "entrypoints": {
     "browser": "./index.html",
@@ -36,12 +36,12 @@
     {
       "id": "init",
       "triggers": ["初始化项目", "生成 AGENTS.md", "创建 Project Profile"],
-      "description": "扫描仓库、预览冲突并在确认后创建 v5 骨架。"
+      "description": "扫描仓库、预览冲突并在确认后创建 v6 骨架。"
     },
     {
       "id": "migrate",
-      "triggers": ["迁移 agents-init v5", "升级项目 Agent 结构"],
-      "description": "保留现有项目事实和工作数据，将职责边界迁移到 v5。"
+      "triggers": ["迁移 agents-init", "升级项目 Agent 结构", "从 project-runtime 迁移"],
+      "description": "保留现有项目事实和工作数据，把 v5 Profile 升级到 v6 并迁移职责边界。"
     }
   ],
   "outputs": [
@@ -52,7 +52,7 @@
     "AGENT.md",
     ".agents/plugin.json",
     ".agents/mcp.json",
-    ".agents/moe.sakanano.project-runtime/project.json",
+    ".agents/moe.sakanano.agent-pack/project.json",
     ".agent-doc/"
   ],
   "privacy": {
@@ -62,11 +62,13 @@
   },
   "compatibility": {
     "agent_plugins": "1.0.0",
-    "project_runtime": "bundled in the same plugin"
+    "project_orchestrator": "bundled as plugins/project-orchestrator",
+    "agent_pack": "bundled as plugins/agent-pack"
   },
   "distribution": {
     "plugin_manifest": "../../plugin.json",
-    "runtime_skill": "../project-runtime/SKILL.md",
+    "lifecycle_skill": "../../plugins/project-orchestrator/skills/project-orchestrator/SKILL.md",
+    "capability_skill": "../../plugins/agent-pack/skills/agent-pack/SKILL.md",
     "install_unit": "repository-root"
   }
 }

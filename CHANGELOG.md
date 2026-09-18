@@ -1,5 +1,31 @@
 # 更新记录
 
+## 2026-09-18
+
+### 6.0.0
+
+破坏性变更：`project-runtime` 已拆分为 `project-orchestrator`（生命周期编排）与 `agent-pack`（扩展能力管理），本包不再分发 `project-runtime`。
+
+### Changed
+
+- Project Profile 路径改为 `.agents/moe.sakanano.agent-pack/project.json`，与 `agent-pack` 的读取路径一致。
+- Profile `runtime` 区块改为 `skill/plugin = project-orchestrator`，新增 `capability_manager = agent-pack`；`distribution` 变为可选。
+- `AGENT.template.md` 升级到 v6.0：五类职责分离，生成的 `AGENTS.md`、`CLAUDE.md`、`AGENT.md` 路由到 `project-orchestrator` 与 `agent-pack`。
+- 初始化器写入前校验随包的 `plugins/project-orchestrator` 与 `plugins/agent-pack`。
+- `bootstrap_and_init.py` 用 agent-pack 依次安装 `agents-init`、`project-orchestrator`、`agent-pack` 三个 Plugin，新增 `--client claude`。
+
+### Added
+
+- `plugins/project-orchestrator/` 与 `plugins/agent-pack/`：从可信源码白名单导出的独立 Plugin，名称与版本和源头一致，避免同机重复安装。
+- `scripts/export_plugins.py`：导出时把 `plugin.json#repository` 改写为本公开仓库，并对改写后内容做隐私扫描。
+- `--mode migrate` 检测 v5 Profile：保留项目自定义字段并升级到新路径，旧文件移入项目外恢复目录；初始化模式遇到 v5 项目以 `migrate-required` 停止。
+- `--mode migrate` 遇到父目录为符号链接的骨架文件（如 `.agents/skills -> ../skills`）时跳过并在 `skipped_symlinked_parents` 报告，永不穿过链接写入；对这类路径使用 `--replace` 会被拒绝。
+- `--skip <path>`（仅 migrate）：既有项目可显式不要某些骨架文件，例如不使用根级 `docs/` 的项目；Profile 不可跳过。
+
+### Removed
+
+- `skills/project-runtime/`、`runtime/`、根目录 `mcp.json` / `.mcp.json`、`scripts/export_project_runtime.py` 及其测试。
+
 ## 2026-08-13
 
 ### 5.2.2

@@ -27,14 +27,29 @@ class SiteReleaseTests(unittest.TestCase):
             "INSTALL.md",
             "llms.txt",
             "plugin.json",
-            "mcp.json",
             "skills",
-            "runtime",
+            "plugins",
             "scripts",
             ".codex-plugin/plugin.json",
-            ".mcp.json",
         ):
             self.assertIn(required, workflow)
+        self.assertNotIn("runtime", workflow)
+
+    def test_bundled_plugins_match_manifests(self) -> None:
+        for name in ("project-orchestrator", "agent-pack"):
+            root = ROOT / "plugins" / name
+            manifest = json.loads((root / "plugin.json").read_text(encoding="utf-8"))
+            adapter = json.loads((root / ".codex-plugin/plugin.json").read_text(encoding="utf-8"))
+            self.assertEqual(manifest["name"], name)
+            self.assertEqual(adapter["version"], manifest["version"])
+            self.assertEqual(manifest["repository"], "https://github.com/lc4t/skill")
+            self.assertTrue((root / "skills" / name / "SKILL.md").is_file())
+
+    def test_no_project_runtime_left_in_distribution(self) -> None:
+        self.assertFalse((ROOT / "skills/project-runtime").exists())
+        self.assertFalse((ROOT / "runtime").exists())
+        for path in ("plugin.json", ".codex-plugin/plugin.json", "index.json", "llms.txt"):
+            self.assertNotIn("project-runtime", (ROOT / path).read_text(encoding="utf-8"), path)
 
 
 if __name__ == "__main__":

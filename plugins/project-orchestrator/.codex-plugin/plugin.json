@@ -1,0 +1,18 @@
+{
+  "name": "project-orchestrator",
+  "version": "1.4.0",
+  "description": "Portable project lifecycle orchestration for configured workspaces.",
+  "author": {
+    "name": "lc4t"
+  },
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Project Orchestrator",
+    "shortDescription": "按项目契约编排 Task/Case、路由工具与叶子 Skill、验证与受控 Git 交付",
+    "longDescription": "读取项目 AGENTS.md 契约，选择最小 Task 或 Case，把领域工作路由给确定性 Tool 与叶子 Skill，再完成验证、进度记录与限定范围的 Git 交付。Agent 扩展（Plugin/Skill/MCP）的盘点、迁移与同步由 agent-pack 承担，不在本 Skill 内。",
+    "developerName": "lc4t",
+    "category": "Developer Tools",
+    "capabilities": ["project-discovery", "task-routing", "case-routing", "verification", "git-delivery"],
+    "defaultPrompt": "Use $project-orchestrator to discover this project's contract and run the current request through the smallest valid lifecycle."
+  }
+}

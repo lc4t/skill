@@ -9,7 +9,12 @@ from pathlib import Path
 
 
 PLUGIN_ROOT = Path(__file__).resolve().parents[1]
-RUNTIME = PLUGIN_ROOT / "runtime" / "project_runtime_config.py"
+AGENT_PACK = PLUGIN_ROOT / "plugins" / "agent-pack" / "runtime" / "agent_pack_config.py"
+UNITS = (
+    ("agents-init", PLUGIN_ROOT),
+    ("project-orchestrator", PLUGIN_ROOT / "plugins" / "project-orchestrator"),
+    ("agent-pack", PLUGIN_ROOT / "plugins" / "agent-pack"),
+)
 
 
 class PluginEndToEndTests(unittest.TestCase):
@@ -21,36 +26,36 @@ class PluginEndToEndTests(unittest.TestCase):
             text=True,
         )
 
-    def test_manifest_distributes_both_chinese_skills(self) -> None:
+    def test_manifests_distribute_three_chinese_skills(self) -> None:
         manifest = json.loads((PLUGIN_ROOT / "plugin.json").read_text(encoding="utf-8"))
         self.assertEqual(manifest["name"], "agents-init")
-        self.assertEqual(manifest["version"], "5.2.2")
-        for skill in ("agents-init", "project-runtime"):
-            skill_file = PLUGIN_ROOT / "skills" / skill / "SKILL.md"
-            self.assertTrue(skill_file.is_file())
-            self.assertRegex(skill_file.read_text(encoding="utf-8"), r"[\u4e00-\u9fff]")
+        self.assertEqual(manifest["version"], "6.0.0")
+        for name, root in UNITS:
+            skill_file = root / "skills" / name / "SKILL.md"
+            self.assertTrue(skill_file.is_file(), name)
+            self.assertRegex(skill_file.read_text(encoding="utf-8"), r"[一-鿿]")
 
-    def test_install_once_then_initialize_and_run_doctor(self) -> None:
+    def test_install_three_plugins_then_initialize_and_run_doctor(self) -> None:
         with tempfile.TemporaryDirectory() as home_dir, tempfile.TemporaryDirectory() as project_dir:
             home = Path(home_dir)
             project = Path(project_dir)
-            install = self.run_command(
-                sys.executable,
-                RUNTIME,
-                "--output", "json",
-                "bootstrap",
-                "--plugin", PLUGIN_ROOT,
-                "--client", "codex",
-                "--home", home,
-                "--apply",
-            )
-            self.assertEqual(install.returncode, 0, install.stderr or install.stdout)
-            installed = home / ".agents" / "plugins" / "plugins" / "agents-init"
-            self.assertTrue((installed / "skills/project-runtime/SKILL.md").is_file())
+            for name, root in UNITS:
+                install = self.run_command(
+                    sys.executable,
+                    AGENT_PACK,
+                    "--output", "json",
+                    "bootstrap",
+                    "--plugin", root,
+                    "--client", "codex",
+                    "--home", home,
+                    "--apply",
+                )
+                self.assertEqual(install.returncode, 0, f"{name}: {install.stderr or install.stdout}")
+            installed = home / ".agents" / "plugins" / "plugins"
 
             initialize = self.run_command(
                 sys.executable,
-                installed / "skills/agents-init/scripts/init_project.py",
+                installed / "agents-init/skills/agents-init/scripts/init_project.py",
                 "--project", project,
                 "--name", "示例项目",
                 "--slug", "example-project",
@@ -69,7 +74,7 @@ class PluginEndToEndTests(unittest.TestCase):
 
             doctor = self.run_command(
                 sys.executable,
-                installed / "runtime/project_runtime_config.py",
+                installed / "agent-pack/runtime/agent_pack_config.py",
                 "--output", "json",
                 "doctor",
                 "--project", project,

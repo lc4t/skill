@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""使用 agents-init v5.2 中文模板安全创建项目骨架。"""
+"""使用 agents-init v6 中文模板安全创建或迁移项目骨架。"""
 
 from __future__ import annotations
 
@@ -14,8 +14,28 @@ from pathlib import Path
 from typing import Iterable
 
 
-INITIALIZER_VERSION = "5.2.0"
+INITIALIZER_VERSION = "6.0.0"
 PLUGIN_ROOT = Path(__file__).resolve().parents[3]
+PROFILE_SCHEMA = "https://skill.sakanano.moe/skills/agents-init/project.schema.json"
+PROFILE_PATH = Path(".agents/moe.sakanano.agent-pack/project.json")
+LEGACY_PROFILE_PATH = Path(".agents/moe.sakanano.project-runtime/project.json")
+RUNTIME_BLOCK = {
+    "skill": "project-orchestrator",
+    "plugin": "project-orchestrator",
+    "capability_manager": "agent-pack",
+    "distribution": "bundled",
+    "required": True,
+    "commit_policy": "explicit",
+    "push_policy": "explicit",
+}
+BUNDLED_PLUGINS = {
+    "project-orchestrator": (Path("skills/project-orchestrator/SKILL.md"),),
+    "agent-pack": (
+        Path("skills/agent-pack/SKILL.md"),
+        Path("runtime/agent_pack_config.py"),
+        Path("runtime/mcp_server.py"),
+    ),
+}
 TEMPLATE_PATH = Path(__file__).resolve().parents[1] / "AGENT.template.md"
 TEMPLATE_PATTERN = re.compile(
     r"<!-- agents-init:template (?P<name>[^ ]+) -->\n"
@@ -92,40 +112,88 @@ def render_template(template: str, replacements: dict[str, str]) -> str:
     return rendered
 
 
+def _is_regular_file(path: Path) -> bool:
+    try:
+        metadata = path.lstat()
+    except FileNotFoundError:
+        return False
+    return stat.S_ISREG(metadata.st_mode) and not stat.S_ISLNK(metadata.st_mode)
+
+
+def _read_manifest(path: Path) -> dict:
+    try:
+        manifest = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise InitError(f"Plugin manifest 无法解析：{path}", code="runtime-required") from exc
+    if not isinstance(manifest, dict):
+        raise InitError(f"Plugin manifest 根节点必须是对象：{path}", code="runtime-required")
+    return manifest
+
+
 def validate_runtime(plugin_root: Path) -> dict[str, str | bool]:
     root = plugin_root.expanduser().resolve()
-    required = (
-        Path("plugin.json"),
-        Path("runtime/project_runtime_config.py"),
-        Path("runtime/mcp_server.py"),
-        Path("skills/project-runtime/SKILL.md"),
-    )
-    missing: list[str] = []
-    for relative in required:
-        candidate = root / relative
-        try:
-            metadata = candidate.lstat()
-        except FileNotFoundError:
-            missing.append(str(relative))
-            continue
-        if stat.S_ISLNK(metadata.st_mode) or not stat.S_ISREG(metadata.st_mode):
-            missing.append(str(relative))
+    required = [Path("plugin.json")]
+    for name, files in BUNDLED_PLUGINS.items():
+        required.append(Path("plugins") / name / "plugin.json")
+        required.extend(Path("plugins") / name / relative for relative in files)
+    missing = [str(relative) for relative in required if not _is_regular_file(root / relative)]
     if missing:
         raise InitError(
-            "缺少必需的同包 project-runtime 文件：" + ", ".join(missing),
+            "缺少必需的同包 project-orchestrator / agent-pack 文件：" + ", ".join(missing),
             code="runtime-required",
         )
-    try:
-        manifest = json.loads((root / "plugin.json").read_text(encoding="utf-8"))
-    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
-        raise InitError("Plugin manifest 无法解析", code="runtime-required") from exc
-    if manifest.get("name") != "agents-init":
+    if _read_manifest(root / "plugin.json").get("name") != "agents-init":
         raise InitError("Plugin manifest 必须声明 name=agents-init", code="runtime-required")
+    versions: dict[str, str] = {}
+    for name in BUNDLED_PLUGINS:
+        manifest = _read_manifest(root / "plugins" / name / "plugin.json")
+        if manifest.get("name") != name:
+            raise InitError(f"同包 Plugin manifest 必须声明 name={name}", code="runtime-required")
+        versions[name] = str(manifest.get("version", ""))
     return {
         "available": True,
         "source": "bundled" if root == PLUGIN_ROOT.resolve() else "external",
         "plugin": "agents-init",
+        "lifecycle": f"project-orchestrator@{versions['project-orchestrator']}",
+        "capabilities": f"agent-pack@{versions['agent-pack']}",
     }
+
+
+def read_legacy_profile(root: Path) -> dict | None:
+    current = root
+    last = len(LEGACY_PROFILE_PATH.parts) - 1
+    for index, part in enumerate(LEGACY_PROFILE_PATH.parts):
+        current /= part
+        try:
+            metadata = current.lstat()
+        except FileNotFoundError:
+            return None
+        if stat.S_ISLNK(metadata.st_mode):
+            kind = "legacy profile" if index == last else "parent"
+            raise InitError(f"refusing symlinked {kind}: {current.relative_to(root)}")
+    if not stat.S_ISREG(metadata.st_mode):
+        raise InitError(f"legacy profile is not a regular file: {LEGACY_PROFILE_PATH}")
+    try:
+        profile = json.loads(current.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise InitError(f"legacy profile 无法解析：{LEGACY_PROFILE_PATH}", code="profile-invalid") from exc
+    if not isinstance(profile, dict) or profile.get("schema_version") != "1.0":
+        raise InitError("legacy profile 必须是 schema_version=1.0 的对象", code="profile-invalid")
+    return profile
+
+
+def upgrade_legacy_profile(legacy: dict) -> dict:
+    """保留项目自定义字段，只替换运行时归属与版本元数据。"""
+    upgraded = {"$schema": PROFILE_SCHEMA, **legacy}
+    upgraded["$schema"] = PROFILE_SCHEMA
+    upgraded["initializer_version"] = INITIALIZER_VERSION
+    runtime = dict(legacy.get("runtime") or {})
+    for key in ("skill", "plugin", "capability_manager", "distribution"):
+        runtime[key] = RUNTIME_BLOCK[key]
+    for key in ("required", "commit_policy", "push_policy"):
+        runtime.setdefault(key, RUNTIME_BLOCK[key])
+    upgraded["runtime"] = runtime
+    return upgraded
 
 
 def validate_inline(label: str, value: str) -> str:
@@ -139,7 +207,7 @@ def validate_inline(label: str, value: str) -> str:
 def files_for(inputs: Inputs, templates: dict[str, str] | None = None) -> dict[Path, str]:
     templates = templates or load_templates()
     profile = {
-        "$schema": "https://skill.sakanano.moe/skills/agents-init/project.schema.json",
+        "$schema": PROFILE_SCHEMA,
         "schema_version": "1.0",
         "initializer_version": INITIALIZER_VERSION,
         "name": inputs.name,
@@ -150,14 +218,7 @@ def files_for(inputs: Inputs, templates: dict[str, str] | None = None) -> dict[P
             "runtime": inputs.runtime,
             "agent_cli": list(inputs.agent_cli),
         },
-        "runtime": {
-            "skill": "project-runtime",
-            "plugin": "agents-init",
-            "distribution": "bundled",
-            "required": True,
-            "commit_policy": "explicit",
-            "push_policy": "explicit",
-        },
+        "runtime": dict(RUNTIME_BLOCK),
         "opinion": {
             "provider": None,
             "project_overlay": "OPINION.md",
@@ -204,7 +265,7 @@ def files_for(inputs: Inputs, templates: dict[str, str] | None = None) -> dict[P
             "$schema": "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
             "mcpServers": {},
         }),
-        Path(".agents/moe.sakanano.project-runtime/project.json"): json_text(profile),
+        PROFILE_PATH: json_text(profile),
         Path(".agents/skills/.gitkeep"): "",
         Path(".agent-doc/plan.md"): render_template(templates[".agent-doc/plan.md"], replacements),
         Path(".agent-doc/progress.md"): render_template(templates[".agent-doc/progress.md"], replacements),
@@ -221,11 +282,16 @@ def validate_root(path: Path) -> Path:
     return root
 
 
-def plan_writes(root: Path, files: dict[Path, str]) -> tuple[list[Path], list[Path]]:
+def plan_writes(
+    root: Path, files: dict[Path, str], *, skip_symlinked_parents: bool = False
+) -> tuple[list[Path], list[Path], list[Path]]:
+    """返回 (create, collisions, symlinked)；symlinked 只在迁移模式出现，永不写入。"""
     create: list[Path] = []
     collisions: list[Path] = []
+    symlinked: list[Path] = []
     for relative in sorted(files, key=str):
         current = root
+        linked = False
         for part in relative.parts[:-1]:
             current /= part
             try:
@@ -233,9 +299,15 @@ def plan_writes(root: Path, files: dict[Path, str]) -> tuple[list[Path], list[Pa
             except FileNotFoundError:
                 break
             if stat.S_ISLNK(metadata.st_mode):
-                raise InitError(f"refusing symlinked parent: {current.relative_to(root)}")
+                if not skip_symlinked_parents:
+                    raise InitError(f"refusing symlinked parent: {current.relative_to(root)}")
+                linked = True
+                break
             if not stat.S_ISDIR(metadata.st_mode):
                 raise InitError(f"parent is not a directory: {current.relative_to(root)}")
+        if linked:
+            symlinked.append(relative)
+            continue
         destination = root / relative
         try:
             destination.lstat()
@@ -243,7 +315,7 @@ def plan_writes(root: Path, files: dict[Path, str]) -> tuple[list[Path], list[Pa
         except FileNotFoundError:
             exists = False
         (collisions if exists else create).append(relative)
-    return create, collisions
+    return create, collisions, symlinked
 
 
 def _open_parent(root_fd: int, relative: Path, created_dirs: list[Path]) -> int:
@@ -349,11 +421,13 @@ def apply_migration(
     create: Iterable[Path],
     replace: Iterable[Path],
     recovery_dir: Path | None,
+    retire: Iterable[Path] = (),
 ) -> None:
     create_paths = list(create)
     replace_paths = list(replace)
-    if replace_paths and recovery_dir is None:
-        raise InitError("--recovery-dir is required when --replace is used")
+    retire_paths = list(retire)
+    if (replace_paths or retire_paths) and recovery_dir is None:
+        raise InitError("--recovery-dir is required when --replace is used or a legacy profile is retired")
     recovery = recovery_dir.expanduser().resolve() if recovery_dir is not None else None
     if recovery is not None:
         if recovery == root or root in recovery.parents:
@@ -361,7 +435,7 @@ def apply_migration(
         recovery.mkdir(parents=True, exist_ok=True, mode=0o700)
         if recovery.is_symlink() or not recovery.is_dir():
             raise InitError("--recovery-dir must be a real directory")
-        conflicts = [path for path in replace_paths if (recovery / path).exists()]
+        conflicts = [path for path in [*replace_paths, *retire_paths] if (recovery / path).exists()]
         if conflicts:
             raise InitError("recovery collision: " + ", ".join(str(path) for path in conflicts))
 
@@ -370,7 +444,7 @@ def apply_migration(
     created_dirs: list[Path] = []
     moved: list[tuple[Path, Path]] = []
     try:
-        for relative in replace_paths:
+        for relative in [*replace_paths, *retire_paths]:
             assert recovery is not None
             original = root / relative
             archived = recovery / relative
@@ -416,12 +490,13 @@ def parser() -> argparse.ArgumentParser:
     result.add_argument("--agent-cli", type=split_csv, required=True)
     result.add_argument("--mode", choices=("init", "migrate"), default="init")
     result.add_argument("--replace", action="append", default=[], help="known skeleton path to replace in migrate mode")
+    result.add_argument("--skip", action="append", default=[], help="known skeleton path the project does not want (migrate mode)")
     result.add_argument("--recovery-dir", type=Path, help="outside-project backup directory required for replacements")
     result.add_argument(
         "--runtime-plugin-root",
         type=Path,
         default=PLUGIN_ROOT,
-        help="包含 agents-init 与 project-runtime 的完整 Plugin 根目录",
+        help="包含 agents-init 与 plugins/{project-orchestrator,agent-pack} 的完整分发根目录",
     )
     result.add_argument("--apply", action="store_true", help="create the complete skeleton only when no collision exists")
     result.add_argument("--output", choices=("text", "json"), default="text")
@@ -447,11 +522,43 @@ def main(argv: list[str] | None = None) -> int:
             tuple(validate_inline("--agent-cli", value) for value in args.agent_cli),
         )
         files = files_for(inputs)
-        create, collisions = plan_writes(root, files)
+        legacy_profile = read_legacy_profile(root)
+        retire: list[Path] = []
+        if legacy_profile is not None:
+            if args.mode == "init":
+                raise InitError(
+                    f"检测到 v5 Project Profile（{LEGACY_PROFILE_PATH}），请改用 --mode migrate",
+                    code="migrate-required",
+                )
+            if not (root / PROFILE_PATH).exists():
+                files[PROFILE_PATH] = json_text(upgrade_legacy_profile(legacy_profile))
+                retire.append(LEGACY_PROFILE_PATH)
+        requested_skip = {Path(value) for value in args.skip}
+        if requested_skip:
+            if args.mode == "init":
+                raise InitError("--skip is available only in migrate mode")
+            unknown_skip = requested_skip - set(files)
+            if unknown_skip:
+                raise InitError("unknown skeleton path: " + ", ".join(str(path) for path in sorted(unknown_skip, key=str)))
+            if PROFILE_PATH in requested_skip:
+                raise InitError(f"{PROFILE_PATH} cannot be skipped")
+            for path in requested_skip:
+                del files[path]
+        create, collisions, symlinked = plan_writes(
+            root, files, skip_symlinked_parents=args.mode == "migrate"
+        )
         requested_replace = {Path(value) for value in args.replace}
+        if retire and PROFILE_PATH in symlinked:
+            raise InitError(f"cannot upgrade legacy profile: {PROFILE_PATH} has a symlinked parent")
+        linked_replace = requested_replace & set(symlinked)
+        if linked_replace:
+            raise InitError(
+                "refusing to replace through symlinked parent: "
+                + ", ".join(str(path) for path in sorted(linked_replace, key=str))
+            )
         if args.mode == "init" and requested_replace:
             raise InitError("--replace is available only in migrate mode")
-        unknown_replace = requested_replace - set(files)
+        unknown_replace = requested_replace - set(files) - set(symlinked)
         if unknown_replace:
             raise InitError("unknown skeleton path: " + ", ".join(str(path) for path in sorted(unknown_replace, key=str)))
         missing_replace = requested_replace - set(collisions)
@@ -467,7 +574,12 @@ def main(argv: list[str] | None = None) -> int:
         else:
             applied = bool(args.apply)
             if applied:
-                apply_migration(root, files, create, replace, args.recovery_dir)
+                apply_migration(root, files, create, replace, args.recovery_dir, retire)
+                if retire:
+                    try:
+                        (root / LEGACY_PROFILE_PATH.parent).rmdir()
+                    except OSError:
+                        pass
             ok = True
         result = {
             "ok": ok,
@@ -476,6 +588,10 @@ def main(argv: list[str] | None = None) -> int:
             "create": [str(path) for path in create],
             "replace": [str(path) for path in replace],
             "preserved_collisions": [str(path) for path in preserved],
+            "skipped_symlinked_parents": [str(path) for path in symlinked],
+            "skipped_by_request": sorted(str(path) for path in requested_skip),
+            "retire": [str(path) for path in retire],
+            "profile_upgraded_from": str(LEGACY_PROFILE_PATH) if retire else None,
             "runtime": runtime_status,
         }
         if args.output == "json":
@@ -489,6 +605,10 @@ def main(argv: list[str] | None = None) -> int:
                 print(f"  replace {path}")
             for path in preserved:
                 print(f"  preserve {path}")
+            for path in symlinked:
+                print(f"  skip {path} (symlinked parent)")
+            for path in retire:
+                print(f"  retire {path} (upgraded into {PROFILE_PATH})")
         return 0 if ok else 1
     except InitError as error:
         if args.output == "json":

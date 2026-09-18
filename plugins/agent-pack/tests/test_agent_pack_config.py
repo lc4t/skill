@@ -11,11 +11,11 @@ from unittest import mock
 RUNTIME = Path(__file__).resolve().parents[1] / "runtime"
 sys.path.insert(0, str(RUNTIME))
 
-from project_runtime_config import (  # noqa: E402
+from agent_pack_config import (  # noqa: E402
     AGENT_PLUGIN_MCP_SCHEMA,
     AGENT_PLUGIN_SCHEMA,
-    PROJECT_RUNTIME_NAMESPACE,
-    RuntimeConfigError,
+    PROJECT_PROFILE_NAMESPACE,
+    AgentPackError,
     doctor,
     install_plugin,
     inventory_client,
@@ -25,7 +25,7 @@ from project_runtime_config import (  # noqa: E402
     transfer_to_project,
 )
 from mcp_server import PROTOCOL_VERSION, handle_message  # noqa: E402
-import project_runtime_config  # noqa: E402
+import agent_pack_config  # noqa: E402
 
 
 def write_json(path: Path, value: dict) -> None:
@@ -39,7 +39,7 @@ def make_project(root: Path, name: str) -> Path:
     profile = {
         "schema_version": "1.0",
         "project": {"name": name},
-        "runtime": {"manager": "project-runtime"},
+        "runtime": {"manager": "agent-pack"},
         "capabilities": {
             "plugin_roots": [".agents"],
             "skill_roots": [".agents/skills"],
@@ -48,7 +48,7 @@ def make_project(root: Path, name: str) -> Path:
             "destination_mcp": ".agents/mcp.json",
         },
     }
-    write_json(root / ".agents" / PROJECT_RUNTIME_NAMESPACE / "project.json", profile)
+    write_json(root / ".agents" / PROJECT_PROFILE_NAMESPACE / "project.json", profile)
     write_json(root / ".agents" / "plugin.json", {
         "$schema": AGENT_PLUGIN_SCHEMA,
         "name": name,
@@ -67,7 +67,7 @@ def make_project(root: Path, name: str) -> Path:
     skill = root / ".agents" / "skills" / "sample-skill"
     skill.mkdir(parents=True)
     (skill / "SKILL.md").write_text(
-        "---\nname: sample-skill\ndescription: Test skill used by project-runtime tests.\n---\n\n# Sample\n",
+        "---\nname: sample-skill\ndescription: Test skill used by agent-pack tests.\n---\n\n# Sample\n",
         encoding="utf-8",
     )
     return root
@@ -88,6 +88,27 @@ class ProjectRuntimeConfigTests(unittest.TestCase):
         self.assertEqual([item.name for item in inventory.mcps], ["local-check"])
         self.assertEqual(inventory.issues, [])
         self.assertTrue(doctor(project)["ok"])
+
+    def test_doctor_ignores_reserved_plugin_placeholders(self) -> None:
+        project = make_project(self.root / "source", "source-project")
+        write_json(project / ".agents" / "mcp.json", {
+            "$schema": AGENT_PLUGIN_MCP_SCHEMA,
+            "mcpServers": {
+                "local-check": {
+                    "type": "stdio",
+                    "command": "python3",
+                    "args": ["${PLUGIN_ROOT}/runtime/server.py"],
+                    "env": {"PYTHONPATH": "${PLUGIN_ROOT}/runtime"},
+                    "cwd": "${PLUGIN_ROOT}",
+                }
+            },
+        })
+        result = doctor(project)
+        self.assertTrue(result["ok"], result["issues"])
+        self.assertFalse(
+            any("credential_env_file" in issue for issue in result["issues"]),
+            result["issues"],
+        )
 
     def test_transfer_dry_run_then_apply(self) -> None:
         source = make_project(self.root / "source", "source-project")
@@ -115,7 +136,7 @@ class ProjectRuntimeConfigTests(unittest.TestCase):
     def test_transfer_refuses_existing_destination(self) -> None:
         source = make_project(self.root / "source", "source-project")
         destination = make_project(self.root / "destination", "destination-project")
-        with self.assertRaises(RuntimeConfigError):
+        with self.assertRaises(AgentPackError):
             transfer_to_project(
                 inventory_project(source), destination, ["sample-skill"], [], apply=False
             )
@@ -180,7 +201,7 @@ class ProjectRuntimeConfigTests(unittest.TestCase):
 
     def test_native_mcp_source_is_visible_without_failing_doctor(self) -> None:
         project = make_project(self.root / "source", "source-project")
-        profile_path = project / ".agents" / PROJECT_RUNTIME_NAMESPACE / "project.json"
+        profile_path = project / ".agents" / PROJECT_PROFILE_NAMESPACE / "project.json"
         profile = json.loads(profile_path.read_text())
         profile["capabilities"]["native_mcp_sources"] = ["native.jsonc"]
         profile["capabilities"]["credential_env_file"] = ".env"
@@ -236,7 +257,7 @@ class ProjectRuntimeConfigTests(unittest.TestCase):
         install_plugin(plugin, "cursor", home=home, apply=True)
         self.assertTrue((home / ".cursor/plugins/local/runtime-test/plugin.json").is_file())
         (plugin / "skills/sample-skill/SKILL.md").write_text("# Updated\n", encoding="utf-8")
-        with self.assertRaises(RuntimeConfigError):
+        with self.assertRaises(AgentPackError):
             install_plugin(plugin, "cursor", home=home, apply=True)
         install_plugin(plugin, "cursor", home=home, apply=True, replace=True)
         self.assertEqual(
@@ -266,6 +287,79 @@ class ProjectRuntimeConfigTests(unittest.TestCase):
         self.assertFalse((target / ".mcp.json").exists())
         self.assertTrue((target / "skills/sample-skill/SKILL.md").is_file())
 
+    def test_bootstrap_codex_preserves_native_manifest_and_is_idempotent(self) -> None:
+        plugin = self.root / "native-codex"
+        write_json(plugin / "plugin.json", {
+            "$schema": AGENT_PLUGIN_SCHEMA,
+            "name": "native-codex",
+            "version": "1.0.0",
+            "description": "Native Codex test plugin",
+        })
+        write_json(plugin / "mcp.json", {
+            "$schema": AGENT_PLUGIN_MCP_SCHEMA,
+            "mcpServers": {
+                "demo": {"type": "stdio", "command": "python3", "args": ["-m", "demo"]}
+            },
+        })
+        write_json(plugin / ".codex-plugin/plugin.json", {
+            "name": "native-codex",
+            "version": "1.0.0",
+            "description": "Native Codex test plugin",
+            "interface": {
+                "displayName": "Native Codex",
+                "shortDescription": "Preserve native metadata",
+            },
+        })
+        home = self.root / "home"
+        install_plugin(plugin, "codex", home=home, apply=True)
+        target = home / ".agents/plugins/plugins/native-codex"
+        adapter = json.loads((target / ".codex-plugin/plugin.json").read_text())
+        self.assertEqual(adapter["interface"]["displayName"], "Native Codex")
+        self.assertEqual(adapter["mcpServers"], "./.mcp.json")
+        preview = install_plugin(plugin, "codex", home=home)
+        self.assertEqual(preview["operations"][0]["action"], "keep-plugin")
+
+    def test_codex_adapter_refreshes_stale_identity_but_keeps_interface(self) -> None:
+        plugin = self.root / "drifted-codex"
+        write_json(plugin / "plugin.json", {
+            "$schema": AGENT_PLUGIN_SCHEMA,
+            "name": "drifted-codex",
+            "version": "2.0.0",
+            "description": "Authoritative description",
+        })
+        write_json(plugin / "mcp.json", {
+            "$schema": AGENT_PLUGIN_MCP_SCHEMA,
+            "mcpServers": {
+                "demo": {"type": "stdio", "command": "python3", "args": ["-m", "demo"]}
+            },
+        })
+        write_json(plugin / ".codex-plugin/plugin.json", {
+            "name": "drifted-codex",
+            "version": "1.0.0",
+            "description": "Stale description",
+            "interface": {"displayName": "Drifted Codex"},
+        })
+        home = self.root / "home"
+        install_plugin(plugin, "codex", home=home, apply=True)
+        adapter = json.loads(
+            (home / ".agents/plugins/plugins/drifted-codex/.codex-plugin/plugin.json").read_text()
+        )
+        self.assertEqual(adapter["version"], "2.0.0")
+        self.assertEqual(adapter["interface"]["displayName"], "Drifted Codex")
+
+    def test_doctor_flags_stale_codex_adapter(self) -> None:
+        project = make_project(self.root / "stale-adapter", "stale-adapter")
+        write_json(project / ".agents" / ".codex-plugin" / "plugin.json", {
+            "name": "stale-adapter",
+            "version": "9.9.9",
+        })
+        result = doctor(project)
+        self.assertFalse(result["ok"])
+        self.assertTrue(
+            any("Codex adapter version" in issue for issue in result["issues"]),
+            result["issues"],
+        )
+
     def test_reconcile_classifies_and_archives_selected_legacy_skill(self) -> None:
         project = make_project(self.root / "source", "source-project")
         home = self.root / "home"
@@ -291,6 +385,99 @@ class ProjectRuntimeConfigTests(unittest.TestCase):
         second = reconcile_project(project, "cursor", home=home)
         self.assertEqual(second["operations"][0]["action"], "keep-plugin")
 
+    def _claude_plugin(self) -> Path:
+        plugin = make_project(self.root / "plugin", "claude-test") / ".agents"
+        write_json(plugin / "mcp.json", {
+            "$schema": AGENT_PLUGIN_MCP_SCHEMA,
+            "mcpServers": {
+                "claude-test": {
+                    "type": "stdio",
+                    "command": "python3",
+                    "args": ["${PLUGIN_ROOT}/runtime/server.py"],
+                    "env": {"PYTHONPATH": "${PLUGIN_ROOT}/runtime"},
+                    "cwd": "${PLUGIN_ROOT}",
+                }
+            },
+        })
+        return plugin
+
+    def test_bootstrap_claude_links_skills_and_registers_user_mcp(self) -> None:
+        plugin = self._claude_plugin()
+        home = self.root / "home"
+        config_path = home / ".claude.json"
+        write_json(config_path, {"theme": "dark", "mcpServers": {"other": {"type": "stdio", "command": "x"}}})
+        config_path.chmod(0o600)
+
+        preview = install_plugin(plugin, "claude", home=home)
+        self.assertFalse(preview["applied"])
+        self.assertEqual(
+            sorted(op["action"] for op in preview["operations"]),
+            ["add-mcp", "link-plugin", "link-skill"],
+        )
+        self.assertFalse((home / ".claude/skills/sample-skill").exists())
+
+        install_plugin(plugin, "claude", home=home, apply=True)
+        skill_link = home / ".claude/skills/sample-skill"
+        record = home / ".claude/agent-pack/plugins/claude-test"
+        self.assertTrue(skill_link.is_symlink())
+        self.assertEqual(skill_link.resolve(), (plugin / "skills/sample-skill").resolve())
+        self.assertEqual(record.resolve(), plugin.resolve())
+        config = json.loads(config_path.read_text(encoding="utf-8"))
+        self.assertEqual(config["theme"], "dark")
+        self.assertIn("other", config["mcpServers"])
+        entry = config["mcpServers"]["claude-test"]
+        self.assertNotIn("cwd", entry)
+        self.assertEqual(entry["args"], [f"{home.resolve()}/.claude/agent-pack/plugins/claude-test/runtime/server.py"])
+        self.assertEqual(config_path.stat().st_mode & 0o777, 0o600)
+
+        again = install_plugin(plugin, "claude", home=home)
+        self.assertTrue(all(op["action"].startswith("keep-") for op in again["operations"]))
+
+        inventory = inventory_client("claude", home)
+        self.assertEqual([(p["name"], p["version"]) for p in inventory.plugins], [("claude-test", "1.0.0")])
+        self.assertEqual([item.name for item in inventory.skills], ["sample-skill"])
+        self.assertIn("claude-test", [item.name for item in inventory.mcps])
+
+    def test_bootstrap_claude_conflict_requires_replace_and_is_recoverable(self) -> None:
+        plugin = self._claude_plugin()
+        home = self.root / "home"
+        stale = home / ".claude/skills/sample-skill"
+        stale.mkdir(parents=True)
+        (stale / "SKILL.md").write_text("# Stale\n", encoding="utf-8")
+        write_json(home / ".claude.json", {"mcpServers": {"claude-test": {"type": "stdio", "command": "old"}}})
+
+        with self.assertRaises(AgentPackError):
+            install_plugin(plugin, "claude", home=home, apply=True)
+        self.assertFalse(stale.is_symlink())
+
+        result = install_plugin(
+            plugin, "claude", home=home, apply=True, replace=True, recovery_root=self.root / "recovery"
+        )
+        recovery = Path(result["recovery"])
+        self.assertTrue(stale.is_symlink())
+        self.assertEqual(
+            (recovery / "replaced-skills/sample-skill/SKILL.md").read_text(encoding="utf-8"), "# Stale\n"
+        )
+        replaced = json.loads((recovery / "replaced-mcp.json").read_text(encoding="utf-8"))
+        self.assertEqual(replaced["mcpServers"]["claude-test"]["command"], "old")
+
+    def test_reconcile_retire_only_archives_plugin_without_installing_package(self) -> None:
+        project = make_project(self.root / "project", "source")
+        home = self.root / "home"
+        legacy = make_project(self.root / "legacy", "legacy-runtime") / ".agents"
+        install_plugin(legacy, "cursor", home=home, apply=True)
+        with self.assertRaises(AgentPackError):
+            reconcile_project(project, "cursor", home=home, retire_only=True)
+        preview = reconcile_project(project, "cursor", home=home, retire_plugins=["legacy-runtime"], retire_only=True)
+        self.assertEqual([op["action"] for op in preview["operations"]], ["archive-plugin"])
+        applied = reconcile_project(
+            project, "cursor", home=home, retire_plugins=["legacy-runtime"], retire_only=True,
+            recovery_root=self.root / "recovery", apply=True,
+        )
+        self.assertFalse((home / ".cursor/plugins/local/legacy-runtime").exists())
+        self.assertFalse((home / ".cursor/plugins/local/source").exists())
+        self.assertTrue((Path(applied["recovery"]) / "plugins/legacy-runtime/plugin.json").is_file())
+
     def test_reconcile_restores_previous_package_when_replacement_fails(self) -> None:
         project = make_project(self.root / "source", "source-project")
         home = self.root / "home"
@@ -298,7 +485,7 @@ class ProjectRuntimeConfigTests(unittest.TestCase):
         destination = home / ".cursor/plugins/local/source"
         marker = destination / "local-marker.txt"
         marker.write_text("keep me\n", encoding="utf-8")
-        original = project_runtime_config._build_package
+        original = agent_pack_config._build_package
         calls = 0
 
         def fail_apply(*args, **kwargs):
@@ -308,8 +495,8 @@ class ProjectRuntimeConfigTests(unittest.TestCase):
                 raise OSError("injected")
             return original(*args, **kwargs)
 
-        with mock.patch.object(project_runtime_config, "_build_package", side_effect=fail_apply):
-            with self.assertRaises(RuntimeConfigError):
+        with mock.patch.object(agent_pack_config, "_build_package", side_effect=fail_apply):
+            with self.assertRaises(AgentPackError):
                 reconcile_project(project, "cursor", home=home, apply=True)
         self.assertEqual(marker.read_text(encoding="utf-8"), "keep me\n")
 

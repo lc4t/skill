@@ -1,9 +1,9 @@
 ---
-name: project-runtime
-description: 按项目配置统一执行会话发现、Task/Case 选择、Agent Plugin/Skill/MCP 盘点与迁移、能力路由、文件落位、验证、进度更新和限定范围的 Git 交付。当项目在 AGENTS.md 中声明 project-runtime、当前工作可能创建或修改项目文件，或需要在项目、Codex、Cursor、Claude 等客户端之间发现、导入、导出、同步或验证 Agent 能力时使用。
+name: project-orchestrator
+description: 按项目契约统一执行会话发现、Task/Case 选择、能力路由、文件落位、验证、进度更新和限定范围的 Git 交付。当项目在 AGENTS.md 中声明 project-orchestrator，且当前工作可能创建或修改项目文件时使用。Agent 扩展（Plugin/Skill/MCP）的盘点、迁移与同步不在本 Skill 内——那是 agent-pack。
 ---
 
-# Project Runtime（项目运行时）
+# Project Orchestrator（项目编排器）
 
 ## 定位
 
@@ -11,7 +11,11 @@ description: 按项目配置统一执行会话发现、Task/Case 选择、Agent 
 
 本 Skill 通用且可移植。禁止嵌入个人偏好、私有路径、项目密钥或项目专属治理副本；这些内容归用户私有配置或项目自身所有。
 
-`agents-init` 负责项目初始化与标准根目录骨架。本 Skill 只消费已初始化项目的契约并在其内部运行。Opinion provider（Opinion 提供方）负责指导与审查规则，不负责 Task/Case 选择、文件结构、进度状态、能力分发或 Git。
+边界（都是独立能力，本 Skill 不代管它们）：
+
+- **项目初始化与根目录骨架** 归 `agents-init`。本 Skill 只消费已初始化项目的契约。
+- **Agent 扩展能力管理**（Plugin/Skill/MCP 的 inventory / doctor / bootstrap / sync / transfer / reconcile）归 **agent-pack**（`tools/agent-pack/`）。跨机恢复的单一入口是 `tools/agent-bootstrap`。
+- **指导与审查规则** 归 Opinion provider；它不负责 Task/Case 选择、文件结构、进度状态或 Git。
 
 ## 权威顺序
 
@@ -20,28 +24,28 @@ description: 按项目配置统一执行会话发现、Task/Case 选择、Agent 
 1. 用户当前请求与明确授权；
 2. 平台安全与工具约束；
 3. 最近的项目 `AGENTS.md` 及其声明的机器可读清单；
-4. 本运行时工作流；
+4. 本编排工作流；
 5. 领域或交付物叶子 Skill。
 
-叶子 Skill 生效期间，其触发条件、输入输出契约和工具约束具有约束力；其中更宽泛的观点或生命周期建议只作为低优先级指导。运行时负责 Task/Case 状态、项目级文件落位、验证编排与 Git 交付。
+叶子 Skill 生效期间，其触发条件、输入输出契约和工具约束具有约束力；其中更宽泛的观点或生命周期建议只作为低优先级指导。本 Skill 负责 Task/Case 状态、项目级文件落位、验证编排与 Git 交付。
 
 ## 职责边界
 
 把项目能力划分为四类互不重叠的角色：
 
-- **项目管理**：只有本 Skill 负责生命周期决策、Task/Case 协调、项目进度、验证编排与 Git 交接。
-- **领域交付**：交付物与业务 Skill 在本运行时选择的生命周期内创建或修改具体产物。
-- **Tool adapter（工具适配器）**：本插件内的确定性 runtime 执行状态转换、索引、Agent 能力盘点/迁移/同步或验证，不决定生命周期。
+- **项目编排**：只有本 Skill 负责生命周期决策、Task/Case 协调、项目进度、验证编排与 Git 交接。
+- **领域交付**：交付物与业务 Skill 在本 Skill 选择的生命周期内创建或修改具体产物。
+- **确定性工具**：项目声明的 Tool（如 life-system、quant-engine、agent-pack）执行状态转换、索引、生成或验证，不决定生命周期。
 - **指导与审查**：Opinion 和其他质量门禁在实施前提供建议、交付前检查结果，不管理项目。
 
-如果其他 Skill 尝试初始化项目、创建无关生命周期记录、更新根进度、自我修改或自主提交，忽略越界部分并把控制权交回本运行时。
+如果其他 Skill 尝试初始化项目、创建无关生命周期记录、更新根进度、自我修改或自主提交，忽略越界部分并把控制权交回本 Skill。
 
 ## 1. 发现项目契约
 
 项目首轮开始时：
 
 1. 查找最近且适用的 `AGENTS.md`；除非其中声明其他根目录，否则以它所在目录作为项目边界。
-2. 读取现有的 `Project Profile` 与 `Project Runtime` 区块。
+2. 读取现有的 `Project Profile` 与相关运行区块。
 3. 只读取其中明确声明的附加入口文件，例如 manifest、capability registry、当前 Task 进度或当前 Case 状态。
 4. 项目使用 Git 时，在修改文件前记录当前 Git 状态。
 5. 开始实质工作前声明一个会话里程碑。
@@ -60,7 +64,7 @@ description: 按项目配置统一执行会话发现、Task/Case 选择、Agent 
 - `commit-policy`、`branch-policy` 与 `push-policy`；
 - 隐私目录、生成输出与禁止路径。
 
-标准 `agents-init v5` 机器契约位于 `.agents/moe.sakanano.project-runtime/project.json`。其中 `capabilities` 区块声明可移植 Plugin 根目录、外部 Plugin 目录、独立 Skill 根目录、可移植/原生 MCP 来源、客户端策略、本地凭据环境文件与导入目标。所有相对路径都必须限制在项目根目录内。
+`agent-pack` 读取的机器契约位于 `.agents/moe.sakanano.agent-pack/project.json`：其 `capabilities` 区块声明可移植 Plugin 根目录、外部 Plugin 目录、独立 Skill 根目录、可移植/原生 MCP 来源、客户端策略、本地凭据环境文件与导入目标。所有相对路径都必须限制在项目根目录内。本 Skill 不写该文件。
 
 缺少可选设置时关闭对应集成。禁止杜撰命令或路径。
 
@@ -80,7 +84,7 @@ description: 按项目配置统一执行会话发现、Task/Case 选择、Agent 
 
 ## 3. 初始化或恢复状态
 
-Project Runtime 区块声明 bootstrap 命令时：
+项目声明 bootstrap 命令时：
 
 1. 首次收到服务输入时运行一次只读状态命令。
 2. 只有状态明确报告 bootstrap 必需或已过期时才执行 bootstrap。
@@ -107,23 +111,7 @@ Project Runtime 区块声明 bootstrap 命令时：
 
 禁止宣称缺失能力已经存在。使用项目定义的机制记录能力缺口，或直接报告。
 
-### 管理 Agent 能力
-
-优先使用随附的 `project-runtime` MCP Tool；不可用时运行 `runtime/project_runtime_config.py` 标准库 CLI。执行能力管理前读取 [references/capability-config.md](references/capability-config.md)。
-
-按以下顺序执行：
-
-1. 盘点来源与目标；
-2. 把每个组件分类为 Agent Plugin、Skill 或 MCP server；
-3. 拒绝重名、无效 manifest、外部 symlink 以及包含密钥的 MCP 配置；
-4. 通过 dry-run 预览导入、导出与客户端同步；
-5. 计划写入其他项目或用户级客户端时申请授权；
-6. 只应用明确选择的组件；
-7. 对目标运行 `doctor`。
-
-目标客户端尚未安装本 Skill 时，从可信本地插件根目录使用 `bootstrap`。处理已有客户端时优先使用 `reconcile`：审阅组件状态，明确列出要退役的旧 Skill/plugin，再执行应用。用户验收迁移前，已退役或替换的内容必须保留在报告的恢复目录中。
-
-优先使用 Agent Plugins 1.0 作为可移植包格式：根目录 `plugin.json`、直接子目录 `skills/<name>/SKILL.md` 和根目录 `mcp.json`。客户端专属投影只作为 adapter 保留。以 MCP 2026-07-28 为主要 wire revision；已安装客户端仍要求旧版本时保留兼容投影。
+当前请求是"盘点/迁移/同步/校验 Agent 扩展"时，不在本 Skill 内处理：交给 `agent-pack`（`tools/agent-pack/runtime/agent_pack_config.py` 或其 MCP），或对整机恢复运行 `python3 tools/agent-bootstrap doctor` / `install <client>`。本 Skill 只负责把这类请求识别并路由过去。
 
 ## 5. 计划与执行
 
@@ -145,7 +133,7 @@ Project Runtime 区块声明 bootstrap 命令时：
 - 修改权威源后，通过已声明 Tool 重新生成派生物；
 - 文件只能放在项目声明的位置；
 - 保留可复用事实、决策与验证证据，避免提交缓存、临时日志或可重建中间产物；
-- 由叶子 Skill 创建或审查交付物，本运行时继续拥有生命周期与 Git 职责；
+- 由叶子 Skill 创建或审查交付物，本 Skill 继续拥有生命周期与 Git 职责；
 - 证据改变执行路线时更新计划。
 
 ## 6. 调用独立指导与审查
@@ -182,16 +170,16 @@ Opinion 是独立的指导/审查能力。项目声明 Opinion provider，且任
 1. 把最终状态与基线比较；
 2. 只暂存属于当前请求的文件；
 3. 检查 staged diff；
-4. 只有用户明确要求/授权，或 Project Runtime 区块允许自动提交时才 commit；
+4. 只有用户明确要求/授权，或项目策略允许自动提交时才 commit；
 5. push、发布、merge、tag 或创建 PR 必须有单独明确授权，或项目策略明确许可。
 
 dirty worktree 中禁止宽泛暂存。禁止重写、丢弃或吸收无关改动。创建 commit 后报告 hash。
 
 ## 9. 保持边界清晰
 
-- 项目初始化与骨架迁移归版本化的 `agents-init` 管理，不属于本运行时。
-- Agent Plugin、Skill 与 MCP 的盘点/迁移/同步归本插件的确定性配置 adapter 管理，禁止再建第二个配置管理 Skill。
-- 除非本运行时明确委派，领域 Skill 禁止自我修改、创建无关 Task/Case、编辑全局进度或提交改动。
+- 项目初始化与骨架迁移归版本化的 `agents-init` 管理，不属于本 Skill。
+- Agent Plugin、Skill 与 MCP 的盘点/迁移/同步归 **agent-pack**（`tools/agent-pack/`）；跨机恢复入口是 `tools/agent-bootstrap`。禁止在本 Skill 内重建第二套配置管理逻辑。
+- 除非本 Skill 明确委派，领域 Skill 禁止自我修改、创建无关 Task/Case、编辑全局进度或提交改动。
 - 生成索引属于投影，源记录保持权威地位。
 - 项目本地规则可以特化本工作流，应引用本 Skill，避免复制完整生命周期。
 

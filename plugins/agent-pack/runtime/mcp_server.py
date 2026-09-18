@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""MCP stdio adapter for project-runtime configuration operations.
+"""MCP stdio adapter for agent-pack capability-management operations.
 
 Primary protocol: MCP 2026-07-28 (stateless, per-request metadata).
 Compatibility: legacy initialize/notifications/initialized clients.
@@ -12,8 +12,8 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from project_runtime_config import (
-    RuntimeConfigError,
+from agent_pack_config import (
+    AgentPackError,
     doctor,
     install_plugin,
     inventory_source,
@@ -25,20 +25,30 @@ from project_runtime_config import (
 
 PROTOCOL_VERSION = "2026-07-28"
 LEGACY_VERSION = "2025-06-18"
-SERVER_INFO = {"name": "project-runtime", "version": "1.3.3"}
+def _plugin_version() -> str:
+    """Single source of truth: the sibling plugin.json version."""
+    try:
+        manifest = json.loads((Path(__file__).resolve().parents[1] / "plugin.json").read_text(encoding="utf-8"))
+        version = manifest.get("version")
+        return version if isinstance(version, str) else "0.0.0"
+    except (OSError, json.JSONDecodeError):
+        return "0.0.0"
+
+
+SERVER_INFO = {"name": "agent-pack", "version": _plugin_version()}
 SERVER_META = {"io.modelcontextprotocol/serverInfo": SERVER_INFO}
 
 
 TOOLS = [
     {
-        "name": "project_runtime_bootstrap",
-        "title": "Install Project Runtime Plugin",
-        "description": "Dry-run or install a portable plugin, including project-runtime itself, into Codex or Cursor without overwriting an existing package.",
+        "name": "agent_pack_bootstrap",
+        "title": "Install Agent Plugin",
+        "description": "Dry-run or install a portable plugin, including agent-pack itself, into Codex, Cursor, or Claude Code without overwriting an existing package.",
         "inputSchema": {
             "type": "object",
             "properties": {
                 "plugin": {"type": "string"},
-                "client": {"type": "string", "enum": ["codex", "cursor"]},
+                "client": {"type": "string", "enum": ["codex", "cursor", "claude"]},
                 "home": {"type": "string"},
                 "apply": {"type": "boolean", "default": False},
                 "replace": {"type": "boolean", "default": False},
@@ -50,7 +60,7 @@ TOOLS = [
         "annotations": {"destructiveHint": False, "idempotentHint": False},
     },
     {
-        "name": "project_runtime_reconcile",
+        "name": "agent_pack_reconcile",
         "title": "Reconcile Project and Client Capabilities",
         "description": "Classify capability drift, safely replace the managed project package, and archive explicitly selected legacy Skills or plugins with rollback. apply defaults to false.",
         "inputSchema": {
@@ -62,6 +72,7 @@ TOOLS = [
                 "retireSkills": {"type": "array", "items": {"type": "string"}, "default": []},
                 "retirePlugins": {"type": "array", "items": {"type": "string"}, "default": []},
                 "recoveryRoot": {"type": "string"},
+                "retireOnly": {"type": "boolean", "default": False},
                 "apply": {"type": "boolean", "default": False},
             },
             "required": ["project", "client"],
@@ -70,7 +81,7 @@ TOOLS = [
         "annotations": {"destructiveHint": True, "idempotentHint": False},
     },
     {
-        "name": "project_runtime_inventory",
+        "name": "agent_pack_inventory",
         "title": "Inventory Agent Capabilities",
         "description": "Discover portable Agent Plugins, Skills, and MCP servers from a project, plugin directory, or supported client.",
         "inputSchema": {
@@ -84,7 +95,7 @@ TOOLS = [
         },
     },
     {
-        "name": "project_runtime_doctor",
+        "name": "agent_pack_doctor",
         "title": "Validate Project Capabilities",
         "description": "Validate an initialized project's Agent Plugin, Skill, MCP, duplicate-name, portability, and secret boundaries.",
         "inputSchema": {
@@ -95,7 +106,7 @@ TOOLS = [
         },
     },
     {
-        "name": "project_runtime_transfer",
+        "name": "agent_pack_transfer",
         "title": "Transfer Skills and MCP Servers",
         "description": "Dry-run or copy explicitly selected portable Skills and MCP definitions into another initialized project. apply defaults to false.",
         "inputSchema": {
@@ -114,7 +125,7 @@ TOOLS = [
         "annotations": {"destructiveHint": False, "idempotentHint": False},
     },
     {
-        "name": "project_runtime_sync",
+        "name": "agent_pack_sync",
         "title": "Sync Project Capabilities to an Agent Client",
         "description": "Dry-run or install a project's portable capability package into Codex or Cursor. apply defaults to false and existing targets are never overwritten.",
         "inputSchema": {
@@ -153,7 +164,7 @@ def _result(payload: dict[str, Any], modern: bool) -> dict[str, Any]:
 def _call(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
     home_value = arguments.get("home")
     home = Path(home_value) if isinstance(home_value, str) else None
-    if name == "project_runtime_bootstrap":
+    if name == "agent_pack_bootstrap":
         recovery_value = arguments.get("recoveryRoot")
         recovery = Path(recovery_value) if isinstance(recovery_value, str) else None
         return install_plugin(
@@ -164,7 +175,7 @@ def _call(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
             replace=bool(arguments.get("replace", False)),
             recovery_root=recovery,
         )
-    if name == "project_runtime_reconcile":
+    if name == "agent_pack_reconcile":
         recovery_value = arguments.get("recoveryRoot")
         recovery = Path(recovery_value) if isinstance(recovery_value, str) else None
         return reconcile_project(
@@ -175,15 +186,16 @@ def _call(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
             retire_plugins=arguments.get("retirePlugins", []),
             recovery_root=recovery,
             apply=bool(arguments.get("apply", False)),
+            retire_only=bool(arguments.get("retireOnly", False)),
         )
-    if name == "project_runtime_inventory":
+    if name == "agent_pack_inventory":
         inventory = inventory_source(arguments["source"], home)
         payload = inventory.to_dict()
         payload["ok"] = not payload["issues"]
         return payload
-    if name == "project_runtime_doctor":
+    if name == "agent_pack_doctor":
         return doctor(Path(arguments["project"]))
-    if name == "project_runtime_transfer":
+    if name == "agent_pack_transfer":
         source = inventory_source(arguments["source"], home)
         return transfer_to_project(
             source,
@@ -192,14 +204,14 @@ def _call(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
             arguments.get("mcps", []),
             apply=bool(arguments.get("apply", False)),
         )
-    if name == "project_runtime_sync":
+    if name == "agent_pack_sync":
         return sync_project(
             Path(arguments["project"]),
             arguments["client"],
             home=home,
             apply=bool(arguments.get("apply", False)),
         )
-    raise RuntimeConfigError(f"unknown tool: {name}")
+    raise AgentPackError(f"unknown tool: {name}")
 
 
 def handle_message(message: dict[str, Any]) -> dict[str, Any] | None:
@@ -242,12 +254,12 @@ def handle_message(message: dict[str, Any]) -> dict[str, Any] | None:
             name = params.get("name")
             arguments = params.get("arguments", {})
             if not isinstance(name, str) or not isinstance(arguments, dict):
-                raise RuntimeConfigError("tools/call requires string name and object arguments")
+                raise AgentPackError("tools/call requires string name and object arguments")
             result = _result(_call(name, arguments), modern)
         else:
             return {"jsonrpc": "2.0", "id": request_id, "error": {"code": -32601, "message": "Method not found"}}
         return {"jsonrpc": "2.0", "id": request_id, "result": result}
-    except (RuntimeConfigError, KeyError, TypeError, ValueError) as exc:
+    except (AgentPackError, KeyError, TypeError, ValueError) as exc:
         payload = {"ok": False, "error": str(exc)}
         if method == "tools/call":
             return {"jsonrpc": "2.0", "id": request_id, "result": _result(payload, modern)}

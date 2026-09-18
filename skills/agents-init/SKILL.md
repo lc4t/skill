@@ -1,6 +1,6 @@
 ---
 name: agents-init
-description: 初始化仓库或将既有仓库迁移到 agents-init v5 项目骨架。用户要求初始化 Agent 协作、创建 AGENTS.md、增加 Project Profile（项目配置）或迁移旧版 agents-init 结构时使用。本 Skill 只负责结构；project-runtime 负责持续项目管理，Opinion 负责指导与审查。
+description: 初始化仓库或将既有仓库迁移到 agents-init v6 项目骨架。用户要求初始化 Agent 协作、创建 AGENTS.md、增加 Project Profile（项目配置）或迁移旧版 agents-init 结构（含 v5 的 project-runtime Profile）时使用。本 Skill 只负责结构；project-orchestrator 负责持续项目生命周期，agent-pack 负责 Plugin/Skill/MCP 能力，Opinion 负责指导与审查。
 ---
 
 # Agents Init（项目初始化）
@@ -12,7 +12,8 @@ description: 初始化仓库或将既有仓库迁移到 agents-init v5 项目骨
 严格保持以下职责边界：
 
 - `agents-init`：创建项目骨架与 Project Profile；
-- `project-runtime`：管理持续工作、Task/Case 状态、能力、验证、进度与 Git 交付；
+- `project-orchestrator`：管理持续工作、Task/Case 状态、路由、验证、进度与 Git 交付；
+- `agent-pack`：盘点、同步、迁移与对账 Plugin、Skill、MCP；
 - Opinion provider（Opinion 提供方）：提供独立的指导与审查规则；
 - 领域 Skill：创建或检查具体交付物。
 
@@ -20,16 +21,16 @@ description: 初始化仓库或将既有仓库迁移到 agents-init v5 项目骨
 
 ## 必读材料
 
-初始化或迁移项目前，完整读取 [AGENT.template.md](AGENT.template.md)。它是 v5.2 骨架契约、中文生成模板与迁移指南，也是初始化器生成 Markdown 的唯一权威源。
+初始化或迁移项目前，完整读取 [AGENT.template.md](AGENT.template.md)。它是 v6.0 骨架契约、中文生成模板与迁移指南，也是初始化器生成 Markdown 的唯一权威源。
 
-本 Skill 必须从完整 `agents-init` Plugin 使用。开始前确认 Plugin 根目录同时存在 `plugin.json`、`skills/project-runtime/SKILL.md` 与 `runtime/project_runtime_config.py`。只下载 `skills/agents-init/` 子目录时停止初始化并报告 `runtime-required`，引导用户安装完整 Plugin；禁止生成一个无法执行的项目契约。
+本 Skill 必须从完整分发包使用。开始前确认根目录同时存在 `plugin.json`、`plugins/project-orchestrator/skills/project-orchestrator/SKILL.md` 与 `plugins/agent-pack/runtime/agent_pack_config.py`。只下载 `skills/agents-init/` 子目录时停止初始化并报告 `runtime-required`，引导用户安装完整分发包；禁止生成一个无法执行的项目契约。
 
 ## 工作流程
 
 1. 检查仓库根目录、现有 Agent 入口文件、Git 状态、项目清单以及可能的构建/测试命令。
 2. 只推断有直接证据的字段；标记不确定值。只有缺失选择会实质改变生成契约时，才集中询问一次。
 3. 展示拟创建的文件计划与碰撞项。
-4. 初始化器先验证同包 `project-runtime`，用户确认后再使用 `--apply`；脚本无法运行时，严格按中文模板创建同一组文件，并再次确认 runtime 可用。
+4. 初始化器先验证同包 `project-orchestrator` 与 `agent-pack`，用户确认后再使用 `--apply`；脚本无法运行时，严格按中文模板创建同一组文件，并再次确认两者可用。
 5. 初始化模式下，任一碰撞都会阻止全部写入。保留所有既有文件；迁移模式只修改用户审阅差异后明确选择的文件。
 6. 解析生成的 JSON，检查入口文件路由，并报告剩余占位符。
 
@@ -49,18 +50,18 @@ python3 scripts/init_project.py --project /path/to/project \
   --stack python --runtime local --agent-cli codex --apply
 ```
 
-迁移既有项目时，保留所有碰撞文件，只显式替换已审阅的路径。替换操作必须指定项目外恢复目录：
+迁移既有项目时，保留所有碰撞文件，只显式替换已审阅的路径。替换或退役旧 Profile 必须指定项目外恢复目录：
 
 ```bash
 python3 scripts/init_project.py --mode migrate --project /path/to/project \
   --name example --project-type code --vcs github \
   --stack python --runtime local --agent-cli codex \
-  --replace AGENTS.md --recovery-dir /safe/recovery/example-v5 --apply
+  --replace AGENTS.md --recovery-dir /safe/recovery/example-v6 --apply
 ```
 
 ## 输出契约
 
-v5 基线结构如下：
+v6 基线结构如下：
 
 ```text
 AGENTS.md
@@ -72,7 +73,7 @@ AGENT.md
 ├── plugin.json
 ├── mcp.json
 ├── skills/
-└── moe.sakanano.project-runtime/project.json
+└── moe.sakanano.agent-pack/project.json
 .agent-doc/
 ├── plan.md
 ├── progress.md
@@ -86,14 +87,15 @@ docs/
 
 ## 迁移规则
 
-- 只根据明确版本标记识别旧版本；禁止把陌生结构推断为 v4。
+- 只根据明确版本标记识别旧版本；禁止把陌生结构推断为 v4 或 v5。
 - 使用 `--mode migrate`；未选择的碰撞文件保持原样。写入新骨架文件前，每个 `--replace` 路径都必须备份到项目外。
-- 保留项目事实与本地约束。
-- 只有在 `project-runtime` 可用后，才从 Agent 入口文件移除重复的生命周期说明。
+- 检测到 v5 Profile（`.agents/moe.sakanano.project-runtime/project.json`）时，初始化模式以 `migrate-required` 停止；迁移模式保留其项目自定义字段并升级到 `.agents/moe.sakanano.agent-pack/project.json`，旧文件移入 `--recovery-dir`。
+- 保留项目事实与本地约束。入口文件中的 `project-runtime` 引用由用户逐项选择 `--replace` 或手动精简。
+- 只有在 `project-orchestrator` 与 `agent-pack` 可用后，才从 Agent 入口文件移除重复的生命周期说明。
 - 只有得到明确授权，才能把个人/全局规则移入用户的私有权威源；禁止提交到本公开模板。
-- 禁止删除旧 Skill、MCP 条目、Task 数据或进度记录。初始化后由 `project-runtime` 盘点并迁移能力。
+- 禁止删除旧 Skill、MCP 条目、Task 数据或进度记录。初始化后由 `agent-pack` 盘点并迁移能力；旧 `project-runtime` Plugin 用 `agent-pack reconcile --retire-plugin project-runtime` 归档。
 - 本 Skill 禁止执行项目工作、创建 Task/Case、演化 Opinion 或 commit/push。
 
 ## 完成报告
 
-报告完整 Plugin 与同包 runtime 的验证结果、已生成文件、推断出的 Profile 值及证据、保留的碰撞项和验证结果。初始化或迁移完成后结束。
+报告分发包与同包 `project-orchestrator` / `agent-pack` 的验证结果、已生成或升级的文件、推断出的 Profile 值及证据、保留的碰撞项和验证结果。初始化或迁移完成后结束。

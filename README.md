@@ -1,15 +1,16 @@
 # Agents Init Plugin
 
-这是一个公开、可移植的 Agent Plugin，包含两个职责独立的中文 Skill：
+这是一个公开、可移植的 Agent 分发包，包含三个职责独立的 Plugin，Skill 主体均为中文：
 
-- `agents-init`：创建或显式迁移项目骨架与 Project Profile；
-- `project-runtime`：初始化完成后，统一管理 Task、Case、Agent Plugin、Skill、MCP、验证、进度与受控 Git 交接。
+- `agents-init`（仓库根目录）：创建或显式迁移项目骨架与 Project Profile；
+- `project-orchestrator`（`plugins/project-orchestrator/`）：初始化完成后管理 Task、Case、能力路由、验证、进度与受控 Git 交接；
+- `agent-pack`（`plugins/agent-pack/`）：在项目与 Codex / Cursor / Claude Code 之间盘点、校验、安装、同步、迁移与对账 Plugin、Skill、MCP。
 
 Opinion 保持独立，只负责指导和审查交付物。仓库不包含任何用户的 `global.yml`、凭据、私有路径或私有项目内容。
 
 ## 安装单元
 
-**仓库根目录是唯一安装权威。** Agent Plugins 1.0 manifest 为 [`plugin.json`](plugin.json)，MCP 清单为 [`mcp.json`](mcp.json)。只下载 `skills/agents-init/` 会缺少必需的 `project-runtime`，初始化器会以 `runtime-required` 停止并保持目标项目零写入。
+**仓库根目录是唯一下载单元。** 根 manifest 为 [`plugin.json`](plugin.json)；`plugins/` 下两个 Plugin 各有自己的 `plugin.json`。只下载 `skills/agents-init/` 会缺少必需的 `project-orchestrator` 与 `agent-pack`，初始化器会以 `runtime-required` 停止并保持目标项目零写入。
 
 用户可以直接告诉具备联网、本地 Shell 与项目写入能力的 Agent：
 
@@ -17,27 +18,21 @@ Opinion 保持独立，只负责指导和审查交付物。仓库不包含任何
 
 Agent 从 [`llms.txt`](llms.txt) 发现 [`INSTALL.md`](INSTALL.md)，再调用 `scripts/bootstrap_and_init.py` 完成预演、安装、初始化与 doctor。涉及联网、用户级安装或项目写入时，宿主仍可能要求一次权限确认。
 
-### Codex
+### 单独安装 Plugin
 
-克隆或下载完整仓库后，先预演，再应用：
-
-```bash
-python3 runtime/project_runtime_config.py bootstrap --plugin . --client codex
-python3 runtime/project_runtime_config.py bootstrap --plugin . --client codex --apply
-```
-
-### Cursor
+克隆或下载完整仓库后，用随包的 agent-pack 逐个安装，先预演再应用（`--client` 可取 `codex`、`cursor`、`claude`）：
 
 ```bash
-python3 runtime/project_runtime_config.py bootstrap --plugin . --client cursor
-python3 runtime/project_runtime_config.py bootstrap --plugin . --client cursor --apply
+python3 plugins/agent-pack/runtime/agent_pack_config.py bootstrap --plugin . --client codex
+python3 plugins/agent-pack/runtime/agent_pack_config.py bootstrap --plugin plugins/project-orchestrator --client codex
+python3 plugins/agent-pack/runtime/agent_pack_config.py bootstrap --plugin plugins/agent-pack --client codex
 ```
 
-其他支持 Agent Plugins 1.0 的客户端直接安装仓库根目录。
+确认计划后分别追加 `--apply`。其他支持 Agent Plugins 1.0 的客户端直接安装这三个目录。
 
 ## 初始化项目
 
-安装完整 Plugin 后，从 `skills/agents-init/` 运行初始化器。命令默认 dry-run：
+安装完成后，从 `skills/agents-init/` 运行初始化器。命令默认 dry-run：
 
 ```bash
 python3 skills/agents-init/scripts/init_project.py \
@@ -46,7 +41,7 @@ python3 skills/agents-init/scripts/init_project.py \
   --runtime local --agent-cli codex
 ```
 
-审阅后追加 `--apply`。初始化器从 [`AGENT.template.md`](skills/agents-init/AGENT.template.md) 的具名中文区块生成 Markdown，并在任何写入前验证同包 runtime。
+审阅后追加 `--apply`。初始化器从 [`AGENT.template.md`](skills/agents-init/AGENT.template.md) 的具名中文区块生成 Markdown，并在任何写入前验证同包 `project-orchestrator` 与 `agent-pack`。已有 v5 项目请用 `--mode migrate --recovery-dir <项目外目录>` 升级 Profile。
 
 完整的一条命令流程：
 
@@ -63,15 +58,13 @@ python3 scripts/bootstrap_and_init.py \
 
 ```text
 /
-├── plugin.json                    # Agent Plugins 1.0 权威 manifest
-├── mcp.json                       # 可移植 MCP 清单
+├── plugin.json                    # agents-init 的 Agent Plugins 1.0 manifest
 ├── .codex-plugin/plugin.json      # Codex adapter
-├── .mcp.json                      # Codex MCP adapter
-├── skills/
-│   ├── agents-init/
-│   └── project-runtime/
-├── runtime/                       # project-runtime CLI 与 MCP server
-├── scripts/export_project_runtime.py
+├── skills/agents-init/            # 初始化器、模板与 Profile schema
+├── plugins/
+│   ├── project-orchestrator/      # 生命周期编排 Plugin（白名单导出）
+│   └── agent-pack/                # 扩展能力管理 Plugin、CLI 与 MCP（白名单导出）
+├── scripts/export_plugins.py
 ├── scripts/bootstrap_and_init.py
 ├── INSTALL.md
 ├── llms.txt
@@ -80,7 +73,7 @@ python3 scripts/bootstrap_and_init.py \
 
 ## 维护与发布
 
-- `tools/project-runtime` 等可信源码根通过 `scripts/export_project_runtime.py` 白名单导出；默认只检查，`--apply` 才写入。
+- `plugins/` 下两个 Plugin 由可信源码根通过 `scripts/export_plugins.py --source <源码父目录>` 白名单导出；默认只检查，`--apply` 才写入。导出会把 `plugin.json` 的 `repository` 改写为本公开仓库，并对全部文件做隐私扫描。
 - Skill 主体与用户可读描述使用中文；协议字段、命令和专有名词保留原名。
 - `index.json` 是站点机器索引，`index.html` 是浏览器入口。
 - 版本、结构或入口变化记录到 [`CHANGELOG.md`](CHANGELOG.md)。

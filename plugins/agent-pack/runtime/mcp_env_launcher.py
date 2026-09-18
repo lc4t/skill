@@ -86,7 +86,7 @@ def main(argv: list[str] | None = None) -> int:
             os.chdir(cwd)
         os.execvpe(command, [command, *command_args], child_env)
     except (OSError, UnicodeDecodeError, json.JSONDecodeError, RuntimeError) as exc:
-        print(f"project-runtime MCP launch failed: {exc}", file=sys.stderr)
+        print(f"agent-pack MCP launch failed: {exc}", file=sys.stderr)
         return 2
 
 

@@ -264,9 +264,9 @@
       <div>
         <p class="eyebrow">Sakanano Cloud Skills</p>
         <h1>云端 Skills</h1>
-        <p class="summary">一个可安装的 Agent Plugin：用 <code>agents-init</code> 初始化项目，再由同包 <code>project-runtime</code> 持续管理项目生命周期与 Agent 能力。</p>
+        <p class="summary">一个可安装的 Agent 分发包：用 <code>agents-init</code> 初始化项目，再由随包的 <code>project-orchestrator</code> 管理项目生命周期、<code>agent-pack</code> 管理 Plugin / Skill / MCP。</p>
       </div>
-      <span class="badge">Plugin 5.2.2</span>
+      <span class="badge">Plugin 6.0.0</span>
     </header>
 
     <section class="panel" aria-labelledby="one-line-title">
@@ -285,8 +285,8 @@
         <div class="skill-list">
           <article class="skill-card">
             <div>
-              <h3>agents-init v5.2 / Project Profile 初始化器</h3>
-              <p>创建或迁移通用项目骨架，并在写入前验证同包 <code>project-runtime</code>；Opinion 独立提供指导和审查。</p>
+              <h3>agents-init v6 / Project Profile 初始化与迁移</h3>
+              <p>创建或迁移通用项目骨架，并在写入前验证随包的 <code>project-orchestrator</code> 与 <code>agent-pack</code>；可把 v5 Profile 升级到 v6。Opinion 独立提供指导和审查。</p>
             </div>
             <div class="file-map" aria-label="AGENTS.md 初始化模板文件入口">
               <a class="file-link" href="./skills/agents-init/SKILL.md">
@@ -295,7 +295,7 @@
               </a>
               <a class="file-link" href="./skills/agents-init/AGENT.template.md">
                 <strong>AGENT.template.md</strong>
-                <span>独立模板：v5 骨架契约、职责边界与迁移规则。</span>
+                <span>独立模板：v6 骨架契约、职责边界与迁移规则。</span>
               </a>
               <a class="file-link" href="./skills/agents-init/skill.json">
                 <strong>skill.json</strong>
@@ -311,27 +311,46 @@
           </article>
           <article class="skill-card">
             <div>
-              <h3>project-runtime / 项目运行时</h3>
-              <p>读取项目契约，统一编排 Task、Case、Agent Plugin、Skill、MCP、验证、进度与受控 Git 交接。</p>
+              <h3>project-orchestrator / 项目生命周期编排</h3>
+              <p>读取项目契约，选择最小 Task / Case，把工作路由给确定性 Tool 与叶子 Skill，再完成验证、进度记录与受控 Git 交付。</p>
             </div>
-            <div class="file-map" aria-label="project-runtime 文件入口">
-              <a class="file-link" href="./skills/project-runtime/SKILL.md">
+            <div class="file-map" aria-label="project-orchestrator 文件入口">
+              <a class="file-link" href="./plugins/project-orchestrator/skills/project-orchestrator/SKILL.md">
                 <strong>SKILL.md</strong>
                 <span>AI 执行入口：项目生命周期、能力路由与职责边界。</span>
               </a>
-              <a class="file-link" href="./skills/project-runtime/references/capability-config.md">
+              <a class="file-link" href="./plugins/project-orchestrator/plugin.json">
+                <strong>plugin.json</strong>
+                <span>独立 Plugin manifest。</span>
+              </a>
+            </div>
+            <div class="actions" aria-label="project-orchestrator 链接">
+              <a class="button" href="./plugins/project-orchestrator/skills/project-orchestrator/SKILL.md">Skill</a>
+              <a class="button secondary" href="./plugins/project-orchestrator/plugin.json">Plugin</a>
+            </div>
+          </article>
+          <article class="skill-card">
+            <div>
+              <h3>agent-pack / Agent 扩展能力管理</h3>
+              <p>在项目与 Codex / Cursor / Claude Code 之间盘点、校验、安装、同步、迁移与对账 Plugin、Skill、MCP；附带 CLI 与 MCP server。</p>
+            </div>
+            <div class="file-map" aria-label="agent-pack 文件入口">
+              <a class="file-link" href="./plugins/agent-pack/skills/agent-pack/SKILL.md">
+                <strong>SKILL.md</strong>
+                <span>AI 执行入口：何时盘点、同步或迁移能力。</span>
+              </a>
+              <a class="file-link" href="./plugins/agent-pack/references/capability-config.md">
                 <strong>能力配置参考</strong>
                 <span>Agent Plugin、Skill 与 MCP 的盘点、迁移和同步契约。</span>
               </a>
-              <a class="file-link" href="./plugin.json">
-                <strong>plugin.json</strong>
-                <span>包含两个 Skill 与 runtime 的统一安装入口。</span>
+              <a class="file-link" href="./plugins/agent-pack/mcp.json">
+                <strong>mcp.json</strong>
+                <span>agent-pack MCP server 清单。</span>
               </a>
             </div>
-            <div class="actions" aria-label="project-runtime 链接">
-              <a class="button" href="./skills/project-runtime/index.html">浏览</a>
-              <a class="button secondary" href="./skills/project-runtime/SKILL.md">Skill</a>
-              <a class="button secondary" href="./plugin.json">Plugin</a>
+            <div class="actions" aria-label="agent-pack 链接">
+              <a class="button" href="./plugins/agent-pack/skills/agent-pack/SKILL.md">Skill</a>
+              <a class="button secondary" href="./plugins/agent-pack/plugin.json">Plugin</a>
             </div>
           </article>
         </div>
@@ -356,7 +375,7 @@
     </main>
 
     <footer>
-      <span>Plugin 5.2.2 · 更新日期 2026-08-13</span>
+      <span>Plugin 6.0.0 · 更新日期 2026-09-18</span>
     </footer>
   </div>
 </body>

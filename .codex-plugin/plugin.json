@@ -1,24 +1,21 @@
 {
   "name": "agents-init",
-  "version": "5.2.2",
-  "description": "初始化 Agent 项目契约，并通过 project-runtime 持续管理项目能力与生命周期。",
+  "version": "6.0.0",
+  "description": "初始化或迁移 Agent 项目契约；同一分发包附带 project-orchestrator（生命周期）与 agent-pack（扩展能力管理）。",
   "author": {
     "name": "lc4t"
   },
   "skills": "./skills/",
-  "mcpServers": "./.mcp.json",
   "interface": {
     "displayName": "Agents Init",
-    "shortDescription": "初始化项目并提供持续项目运行时",
-    "longDescription": "用 agents-init 创建可移植项目契约，再由 project-runtime 统一管理 Task、Case、Skill、MCP、验证与 Git 交接。",
+    "shortDescription": "初始化或迁移项目骨架与 Project Profile",
+    "longDescription": "用 agents-init 创建或迁移可移植项目契约。项目生命周期由 project-orchestrator 管理，Plugin/Skill/MCP 能力由 agent-pack 管理；两者作为独立 Plugin 随同分发。",
     "developerName": "lc4t",
     "category": "Developer Tools",
     "capabilities": [
       "project-initialization",
-      "project-lifecycle",
-      "agent-capability-management",
-      "mcp"
+      "project-migration"
     ],
-    "defaultPrompt": "使用 $agents-init 初始化项目；项目已初始化时使用 $project-runtime 读取项目契约并推进当前工作。"
+    "defaultPrompt": "使用 $agents-init 初始化或迁移项目；项目已初始化时使用 $project-orchestrator 读取项目契约并推进当前工作。"
   }
 }

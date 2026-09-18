@@ -13,12 +13,14 @@ SCRIPT = PLUGIN_ROOT / "scripts" / "bootstrap_and_init.py"
 
 
 class BootstrapAndInitTests(unittest.TestCase):
-    def run_script(self, project: Path, home: Path, *extra: str) -> subprocess.CompletedProcess[str]:
+    def run_script(
+        self, project: Path, home: Path, *extra: str, client: str = "codex"
+    ) -> subprocess.CompletedProcess[str]:
         return subprocess.run(
             [
                 sys.executable,
                 str(SCRIPT),
-                "--client", "codex",
+                "--client", client,
                 "--project", str(project),
                 "--name", "示例项目",
                 "--slug", "example-project",
@@ -57,9 +59,28 @@ class BootstrapAndInitTests(unittest.TestCase):
             self.assertTrue(payload["initializer"]["applied"])
             self.assertTrue(payload["doctor"]["ok"])
             self.assertTrue((project / "AGENTS.md").is_file())
-            self.assertTrue(
-                (home / ".agents/plugins/plugins/agents-init/skills/project-runtime/SKILL.md").is_file()
-            )
+            self.assertTrue((project / ".agents/moe.sakanano.agent-pack/project.json").is_file())
+            plugins = home / ".agents/plugins/plugins"
+            self.assertEqual(set(payload["plugins"]), {"agents-init", "project-orchestrator", "agent-pack"})
+            self.assertTrue((plugins / "agents-init/skills/agents-init/SKILL.md").is_file())
+            self.assertTrue((plugins / "project-orchestrator/skills/project-orchestrator/SKILL.md").is_file())
+            self.assertTrue((plugins / "agent-pack/runtime/agent_pack_config.py").is_file())
+            self.assertFalse((plugins / "agents-init/skills/project-runtime").exists())
+
+    def test_apply_for_claude_projects_skills_and_agent_pack_mcp(self) -> None:
+        with tempfile.TemporaryDirectory() as project_dir, tempfile.TemporaryDirectory() as home_dir:
+            project, home = Path(project_dir), Path(home_dir)
+            result = self.run_script(project, home, "--apply", client="claude")
+            self.assertEqual(result.returncode, 0, result.stderr or result.stdout)
+            payload = json.loads(result.stdout)
+            self.assertEqual(payload["stage"], "complete")
+            skills = home / ".claude/skills"
+            for skill in ("agents-init", "project-orchestrator", "agent-pack"):
+                self.assertTrue((skills / skill / "SKILL.md").is_file(), skill)
+            self.assertFalse((skills / "project-runtime").exists())
+            claude_config = json.loads((home / ".claude.json").read_text(encoding="utf-8"))
+            self.assertIn("agent-pack", claude_config["mcpServers"])
+            self.assertNotIn("project-runtime", claude_config["mcpServers"])
 
     def test_project_collision_blocks_before_plugin_install(self) -> None:
         with tempfile.TemporaryDirectory() as project_dir, tempfile.TemporaryDirectory() as home_dir:
