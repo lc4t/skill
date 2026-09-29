@@ -7,10 +7,11 @@
 生命周期 Skill：https://skill.sakanano.moe/plugins/project-orchestrator/skills/project-orchestrator/SKILL.md
 扩展能力 Skill：https://skill.sakanano.moe/plugins/agent-pack/skills/agent-pack/SKILL.md
 扩展能力 MCP manifest：https://skill.sakanano.moe/plugins/agent-pack/mcp.json
+Opinion 管理 Skill：https://skill.sakanano.moe/plugins/opinion-manager/skills/opinion-manager/SKILL.md
 
 必须下载完整仓库。禁止只下载 agents-init 子目录；禁止复制任何用户的 global.yml、凭据、.env 或私有路径。
 
-统一命令位于仓库根目录，会依次安装 agents-init、project-orchestrator、agent-pack 三个 Plugin：
+统一命令位于仓库根目录，会依次安装 agents-init、project-orchestrator、agent-pack、opinion-manager 四个 Plugin：
 python3 scripts/bootstrap_and_init.py --client <codex|cursor|claude> --project <absolute-path> --name <name> --project-type <csv> --vcs <vcs> --stack <csv> --runtime <runtime> --agent-cli <csv>
 
-命令默认 dry-run；审阅计划并获得用户授权后追加 --apply。成功标准为 initializer.applied=true 且 doctor.ok=true。
+命令默认 dry-run；审阅计划并获得用户授权后追加 --apply。成功标准为 initializer.applied=true 且 doctor.ok=true。初始化后由 opinion-manager 询问用户选择自定义生成、已批准模板组合、逐条引导或跳过；公开模板目录当前为空。

@@ -14,6 +14,7 @@ UNITS = (
     ("agents-init", PLUGIN_ROOT),
     ("project-orchestrator", PLUGIN_ROOT / "plugins" / "project-orchestrator"),
     ("agent-pack", PLUGIN_ROOT / "plugins" / "agent-pack"),
+    ("opinion-manager", PLUGIN_ROOT / "plugins" / "opinion-manager"),
 )
 
 
@@ -26,16 +27,16 @@ class PluginEndToEndTests(unittest.TestCase):
             text=True,
         )
 
-    def test_manifests_distribute_three_chinese_skills(self) -> None:
+    def test_manifests_distribute_four_chinese_skills(self) -> None:
         manifest = json.loads((PLUGIN_ROOT / "plugin.json").read_text(encoding="utf-8"))
         self.assertEqual(manifest["name"], "agents-init")
-        self.assertEqual(manifest["version"], "6.0.0")
+        self.assertEqual(manifest["version"], "6.1.0")
         for name, root in UNITS:
             skill_file = root / "skills" / name / "SKILL.md"
             self.assertTrue(skill_file.is_file(), name)
             self.assertRegex(skill_file.read_text(encoding="utf-8"), r"[一-鿿]")
 
-    def test_install_three_plugins_then_initialize_and_run_doctor(self) -> None:
+    def test_install_four_plugins_then_initialize_and_run_doctor(self) -> None:
         with tempfile.TemporaryDirectory() as home_dir, tempfile.TemporaryDirectory() as project_dir:
             home = Path(home_dir)
             project = Path(project_dir)

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Opinion Manager"
+  short_description: "生成、组合、审查与维护 Agent 行为规则"
+  default_prompt: "使用 $opinion-manager 为当前环境生成或维护 OPINION.md。"

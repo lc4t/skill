@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://skill.sakanano.moe/skills/agents-init/project.schema.json",
   "title": "agents-init Project Profile",
-  "description": "由 project-orchestrator 与 agent-pack 消费的可移植项目发现契约，位于 .agents/moe.sakanano.agent-pack/project.json。",
+  "description": "由 project-orchestrator、agent-pack 与 opinion-manager 消费的可移植项目发现契约，位于 .agents/moe.sakanano.agent-pack/project.json。",
   "type": "object",
   "additionalProperties": false,
   "required": ["schema_version", "name", "profile", "runtime", "opinion", "capabilities", "work", "privacy"],

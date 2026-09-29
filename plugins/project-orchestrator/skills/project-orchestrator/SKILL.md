@@ -15,7 +15,7 @@ description: 按项目契约统一执行会话发现、Task/Case 选择、能力
 
 - **项目初始化与根目录骨架** 归 `agents-init`。本 Skill 只消费已初始化项目的契约。
 - **Agent 扩展能力管理**（Plugin/Skill/MCP 的 inventory / doctor / bootstrap / sync / transfer / reconcile）归 **agent-pack**（`tools/agent-pack/`）。跨机恢复的单一入口是 `tools/agent-bootstrap`。
-- **指导与审查规则** 归 Opinion provider；它不负责 Task/Case 选择、文件结构、进度状态或 Git。
+- **指导与审查规则** 归 Project Profile 声明的 Opinion provider；当前分发包提供 `opinion-manager`。它不负责 Task/Case 选择、文件结构、进度状态或 Git。
 
 ## 权威顺序
 
@@ -138,12 +138,12 @@ description: 按项目契约统一执行会话发现、Task/Case 选择、能力
 
 ## 6. 调用独立指导与审查
 
-Opinion 是独立的指导/审查能力。项目声明 Opinion provider，且任务创建或审查交付物时，在两个明确边界调用它：
+Opinion 是独立的指导/审查能力。项目声明 Opinion provider，且 `OPINION.md` 含用户确认的规则时，在两个明确边界调用它：
 
 1. **实施前**：使用明确的交付物信号请求适用指导。
 2. **交付前**：请求独立检查，并通过 provider 自身的演化流程记录未解决冲突或可复用反馈。
 
-禁止在本 Skill 内解释、存储或演化 Opinion 规则；禁止让 Opinion provider 选择 Task/Case 状态、路径、进度或 Git 操作。provider 不可用时，明确报告指导/检查降级；只有项目策略允许时才能继续。
+禁止在本 Skill 内解释、存储或演化 Opinion 规则；禁止让 Opinion provider 选择 Task/Case 状态、路径、进度或 Git 操作。`OPINION.md` 仍为空白时跳过规则检查并记录未配置状态。provider 不可用时，明确报告指导/检查降级；只有项目策略允许时才能继续。
 
 ## 7. 验证与记录
 

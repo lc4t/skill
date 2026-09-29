@@ -36,7 +36,7 @@ class SiteReleaseTests(unittest.TestCase):
         self.assertNotIn("runtime", workflow)
 
     def test_bundled_plugins_match_manifests(self) -> None:
-        for name in ("project-orchestrator", "agent-pack"):
+        for name in ("project-orchestrator", "agent-pack", "opinion-manager"):
             root = ROOT / "plugins" / name
             manifest = json.loads((root / "plugin.json").read_text(encoding="utf-8"))
             adapter = json.loads((root / ".codex-plugin/plugin.json").read_text(encoding="utf-8"))
@@ -50,6 +50,19 @@ class SiteReleaseTests(unittest.TestCase):
         self.assertFalse((ROOT / "runtime").exists())
         for path in ("plugin.json", ".codex-plugin/plugin.json", "index.json", "llms.txt"):
             self.assertNotIn("project-runtime", (ROOT / path).read_text(encoding="utf-8"), path)
+
+    def test_public_opinion_template_catalog_is_empty(self) -> None:
+        template_root = ROOT / "plugins/opinion-manager/templates"
+        self.assertEqual(
+            [path.name for path in template_root.iterdir() if path.name != ".gitkeep"],
+            [],
+        )
+        schema = json.loads(
+            (ROOT / "plugins/opinion-manager/references/template.schema.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        self.assertEqual(schema["title"], "Opinion template")
 
 
 if __name__ == "__main__":

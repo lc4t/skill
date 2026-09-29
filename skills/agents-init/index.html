@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>agents-init v6 · 云端 Skills</title>
-  <meta name="description" content="创建或迁移通用项目骨架与 Project Profile；随包 project-orchestrator 管理生命周期，agent-pack 管理扩展能力。">
+  <meta name="description" content="创建或迁移通用项目骨架与 Project Profile；随包管理生命周期、扩展能力与 Opinion。">
   <style>
     :root {
       color-scheme: light;
@@ -259,11 +259,11 @@
     <header>
       <p class="eyebrow">Skill · agents-init</p>
       <h1>agents-init v6</h1>
-      <p class="lead">创建或迁移通用项目骨架与 Project Profile；写入前验证随包的 <code>project-orchestrator</code> 与 <code>agent-pack</code>，Opinion 独立负责指导和审查。</p>
+      <p class="lead">创建或迁移通用项目骨架与 Project Profile；写入前验证随包的 <code>project-orchestrator</code>、<code>agent-pack</code> 与 <code>opinion-manager</code>。</p>
       <div class="meta" aria-label="Skill 元数据">
-        <div><strong>版本</strong><span>6.0.0</span></div>
+        <div><strong>版本</strong><span>6.1.0</span></div>
         <div><strong>状态</strong><span>stable</span></div>
-        <div><strong>更新</strong><span>2026-09-18</span></div>
+        <div><strong>更新</strong><span>2026-09-29</span></div>
         <div><strong>语言</strong><span>zh-CN</span></div>
       </div>
     </header>
@@ -310,7 +310,7 @@
         <ul>
           <li>新仓库需要统一的 Agent 入口与 Project Profile。</li>
           <li>旧版 agents-init 项目（含 v5 project-runtime Profile）需要迁移到 v6 职责边界。</li>
-          <li>项目准备通过 project-orchestrator 管理 Task/Case 与 Git，通过 agent-pack 管理 Skill 与 MCP。</li>
+          <li>项目准备通过 project-orchestrator 管理 Task/Case 与 Git，通过 agent-pack 管理 Skill 与 MCP，通过 opinion-manager 管理 Agent 行为规则。</li>
           <li>公开模板需要排除个人规则、凭据与私有路径。</li>
         </ul>
       </section>
@@ -344,7 +344,7 @@
           <li>确认后运行无覆盖初始化器。</li>
           <li>解析 JSON 并检查 Agent 路由一致性。</li>
           <li>由随包 agent-pack 后续导入或同步 Skill/MCP。</li>
-          <li>由独立 Opinion provider 管理用户规则与场景检查。</li>
+          <li>由随包 opinion-manager 让用户选择自定义生成、已批准模板、逐条引导或跳过。</li>
         </ol>
       </section>
     </main>

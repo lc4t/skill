@@ -61,10 +61,14 @@ class BootstrapAndInitTests(unittest.TestCase):
             self.assertTrue((project / "AGENTS.md").is_file())
             self.assertTrue((project / ".agents/moe.sakanano.agent-pack/project.json").is_file())
             plugins = home / ".agents/plugins/plugins"
-            self.assertEqual(set(payload["plugins"]), {"agents-init", "project-orchestrator", "agent-pack"})
+            self.assertEqual(
+                set(payload["plugins"]),
+                {"agents-init", "project-orchestrator", "agent-pack", "opinion-manager"},
+            )
             self.assertTrue((plugins / "agents-init/skills/agents-init/SKILL.md").is_file())
             self.assertTrue((plugins / "project-orchestrator/skills/project-orchestrator/SKILL.md").is_file())
             self.assertTrue((plugins / "agent-pack/runtime/agent_pack_config.py").is_file())
+            self.assertTrue((plugins / "opinion-manager/runtime/opinion_manager.py").is_file())
             self.assertFalse((plugins / "agents-init/skills/project-runtime").exists())
 
     def test_apply_for_claude_projects_skills_and_agent_pack_mcp(self) -> None:
@@ -75,7 +79,7 @@ class BootstrapAndInitTests(unittest.TestCase):
             payload = json.loads(result.stdout)
             self.assertEqual(payload["stage"], "complete")
             skills = home / ".claude/skills"
-            for skill in ("agents-init", "project-orchestrator", "agent-pack"):
+            for skill in ("agents-init", "project-orchestrator", "agent-pack", "opinion-manager"):
                 self.assertTrue((skills / skill / "SKILL.md").is_file(), skill)
             self.assertFalse((skills / "project-runtime").exists())
             claude_config = json.loads((home / ".claude.json").read_text(encoding="utf-8"))

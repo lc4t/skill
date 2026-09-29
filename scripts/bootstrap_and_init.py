@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""先预演三个 Plugin 的安装与项目初始化，再按授权应用并运行 agent-pack doctor。"""
+"""先预演四个 Plugin 的安装与项目初始化，再按授权应用并运行 agent-pack doctor。"""
 
 from __future__ import annotations
 
@@ -18,6 +18,7 @@ INSTALL_UNITS = (
     ("agents-init", PLUGIN_ROOT),
     ("project-orchestrator", PLUGIN_ROOT / "plugins" / "project-orchestrator"),
     ("agent-pack", PLUGIN_ROOT / "plugins" / "agent-pack"),
+    ("opinion-manager", PLUGIN_ROOT / "plugins" / "opinion-manager"),
 )
 
 

@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Iterable
 
 
-INITIALIZER_VERSION = "6.0.0"
+INITIALIZER_VERSION = "6.1.0"
 PLUGIN_ROOT = Path(__file__).resolve().parents[3]
 PROFILE_SCHEMA = "https://skill.sakanano.moe/skills/agents-init/project.schema.json"
 PROFILE_PATH = Path(".agents/moe.sakanano.agent-pack/project.json")
@@ -34,6 +34,10 @@ BUNDLED_PLUGINS = {
         Path("skills/agent-pack/SKILL.md"),
         Path("runtime/agent_pack_config.py"),
         Path("runtime/mcp_server.py"),
+    ),
+    "opinion-manager": (
+        Path("skills/opinion-manager/SKILL.md"),
+        Path("runtime/opinion_manager.py"),
     ),
 }
 TEMPLATE_PATH = Path(__file__).resolve().parents[1] / "AGENT.template.md"
@@ -139,7 +143,8 @@ def validate_runtime(plugin_root: Path) -> dict[str, str | bool]:
     missing = [str(relative) for relative in required if not _is_regular_file(root / relative)]
     if missing:
         raise InitError(
-            "缺少必需的同包 project-orchestrator / agent-pack 文件：" + ", ".join(missing),
+            "缺少必需的同包 project-orchestrator / agent-pack / opinion-manager 文件："
+            + ", ".join(missing),
             code="runtime-required",
         )
     if _read_manifest(root / "plugin.json").get("name") != "agents-init":
@@ -156,6 +161,7 @@ def validate_runtime(plugin_root: Path) -> dict[str, str | bool]:
         "plugin": "agents-init",
         "lifecycle": f"project-orchestrator@{versions['project-orchestrator']}",
         "capabilities": f"agent-pack@{versions['agent-pack']}",
+        "opinion": f"opinion-manager@{versions['opinion-manager']}",
     }
 
 
@@ -220,7 +226,7 @@ def files_for(inputs: Inputs, templates: dict[str, str] | None = None) -> dict[P
         },
         "runtime": dict(RUNTIME_BLOCK),
         "opinion": {
-            "provider": None,
+            "provider": "opinion-manager",
             "project_overlay": "OPINION.md",
             "strict_mode": "smart",
         },
@@ -496,7 +502,10 @@ def parser() -> argparse.ArgumentParser:
         "--runtime-plugin-root",
         type=Path,
         default=PLUGIN_ROOT,
-        help="包含 agents-init 与 plugins/{project-orchestrator,agent-pack} 的完整分发根目录",
+        help=(
+            "包含 agents-init 与 plugins/{project-orchestrator,agent-pack,opinion-manager} "
+            "的完整分发根目录"
+        ),
     )
     result.add_argument("--apply", action="store_true", help="create the complete skeleton only when no collision exists")
     result.add_argument("--output", choices=("text", "json"), default="text")

@@ -4,13 +4,14 @@
 
 ## 目标
 
-安装分发包中的三个 Plugin，并用 `agents-init` 创建项目契约：
+安装分发包中的四个 Plugin，并用 `agents-init` 创建项目契约：
 
 - `agents-init`：创建或迁移项目骨架与 Project Profile；
 - `project-orchestrator`：初始化后管理项目生命周期（Task/Case、路由、验证、Git）；
 - `agent-pack`：管理项目与客户端之间的 Plugin/Skill/MCP。
+- `opinion-manager`：生成和维护用户确认的 Agent 行为规则。
 
-Opinion provider 保持独立，不在本包内。
+Opinion provider 保持独立职责，并作为 `opinion-manager` 随包安装。公开模板目录当前为空。
 
 ## 前提
 
@@ -38,12 +39,14 @@ python3 scripts/bootstrap_and_init.py \
   --agent-cli codex
 ```
 
-5. 向用户展示三个 Plugin 的安装位置、拟创建文件和碰撞项。得到确认后原样追加 `--apply`。
+5. 向用户展示四个 Plugin 的安装位置、拟创建文件和碰撞项。得到确认后原样追加 `--apply`。
 6. `--apply` 成功后检查输出中的 `doctor.ok=true`；报告已安装 Plugin、已创建文件和仍需填写的 `TODO`。
+7. 调用 `opinion-manager`，让用户选择：粘贴既有规则后自定义生成、使用已经批准的公开模板、逐条引导或跳过。模板目录为空时只提供自定义生成或跳过。
+8. 用户提供的规则只写入目标项目的 `OPINION.md`，禁止复制到下载目录、公开模板、示例、测试或文档。
 
 ## 已有 v5 项目
 
-项目存在 `.agents/moe.sakanano.project-runtime/project.json` 时，不要走上面的初始化流程：先安装三个 Plugin，再用 `skills/agents-init/scripts/init_project.py --mode migrate --recovery-dir <项目外目录>` 升级 Profile，详见 `skills/agents-init/AGENT.template.md` 的“从 v5 迁移”。
+项目存在 `.agents/moe.sakanano.project-runtime/project.json` 时，不要走上面的初始化流程：先安装四个 Plugin，再用 `skills/agents-init/scripts/init_project.py --mode migrate --recovery-dir <项目外目录>` 升级 Profile，详见 `skills/agents-init/AGENT.template.md` 的“从 v5 迁移”。
 
 ## 安全语义
 

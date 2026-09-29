@@ -1,6 +1,6 @@
-# AGENT.template.md v6.0
+# AGENT.template.md v6.1
 
-> 适用范围：可移植的项目初始化与迁移。运行期项目生命周期由同一分发包内的 `project-orchestrator` 负责，Agent 扩展能力（Plugin/Skill/MCP）由 `agent-pack` 负责，Opinion 规则由独立 provider 负责。
+> 适用范围：可移植的项目初始化与迁移。运行期项目生命周期由同一分发包内的 `project-orchestrator` 负责，Agent 扩展能力由 `agent-pack` 负责，Opinion 由 `opinion-manager` 负责。
 
 ## 1. 设计契约
 
@@ -9,7 +9,7 @@
 1. **项目契约**——`AGENTS.md` 与机器可读的 Project Profile 描述仓库。
 2. **生命周期编排**——唯一的 `project-orchestrator` Skill 管理工作容器、能力路由、文件落位、验证、进度和 Git。
 3. **扩展能力管理**——`agent-pack` 盘点、校验、安装、同步、迁移与对账 Plugin、Skill 和 MCP。
-4. **指导/审查**——独立的 Opinion provider 解析全局、场景与项目规则。
+4. **Opinion 管理**——`opinion-manager` 生成、组合、读取和审查用户确认的 Agent 行为规则。
 5. **交付能力**——领域 Skill 与确定性 Tool 创建或检查交付物。
 
 模板必须保持通用。禁止发布个人偏好、组织数据、凭据、私有文件系统路径或复制的私有 Skill。
@@ -48,7 +48,7 @@ Agent Plugins 1.0 可移植文件直接位于 `.agents/`：`plugin.json`、`skil
 {
   "$schema": "https://skill.sakanano.moe/skills/agents-init/project.schema.json",
   "schema_version": "1.0",
-  "initializer_version": "6.0.0",
+  "initializer_version": "6.1.0",
   "name": "PROJECT_NAME",
   "profile": {
     "project_type": ["PROJECT_TYPE"],
@@ -67,7 +67,7 @@ Agent Plugins 1.0 可移植文件直接位于 `.agents/`：`plugin.json`、`skil
     "push_policy": "explicit"
   },
   "opinion": {
-    "provider": null,
+    "provider": "opinion-manager",
     "project_overlay": "OPINION.md",
     "strict_mode": "smart"
   },
@@ -117,7 +117,7 @@ Agent Plugins 1.0 可移植文件直接位于 `.agents/`：`plugin.json`、`skil
 2. 由它读取 Project Profile、当前 Git 状态，以及当前任务必需的入口文件。
 3. 使用领域 Skill 处理具体交付物，使用确定性 Tool 执行状态变更。
 4. Plugin、Skill 与 MCP 的盘点、同步或迁移交给 `agent-pack`。
-5. 已配置 Opinion provider 时，实施前请求指导，交付前请求检查。
+5. `OPINION.md` 含用户确认的规则时，实施前由 `opinion-manager` 提供指导，交付前执行检查。
 
 ## 职责边界
 
@@ -174,9 +174,9 @@ Agent Plugins 1.0 可移植文件直接位于 `.agents/`：`plugin.json`、`skil
 ```markdown
 # 项目 Opinion 覆盖层
 
-尚未确认项目专属 Opinion 规则。
+尚未配置 Opinion。
 
-个人全局与场景规则归用户的私有 Opinion 权威源所有。在 `.agents/moe.sakanano.agent-pack/project.json` 中配置 provider；禁止把这些规则复制进公开项目模板。
+使用 `opinion-manager` 选择自定义生成、已批准模板组合、逐条引导或跳过。公开模板目录可以为空；用户提供的内容只写入当前项目，禁止复制进公开模板。
 ```
 <!-- /agents-init:template -->
 
@@ -186,7 +186,7 @@ Agent Plugins 1.0 可移植文件直接位于 `.agents/`：`plugin.json`、`skil
 ```markdown
 # Agent 路由
 
-读取 `AGENTS.md` 并遵循其中的 Project Profile。加载 `project-orchestrator` 管理项目生命周期；Plugin/Skill/MCP 能力管理交给 `agent-pack`；独立加载已配置的 Opinion provider 进行指导与审查。
+读取 `AGENTS.md` 并遵循其中的 Project Profile。加载 `project-orchestrator` 管理项目生命周期；Plugin/Skill/MCP 能力管理交给 `agent-pack`；Opinion 的生成、读取与审查交给 `opinion-manager`。
 ```
 <!-- /agents-init:template -->
 
@@ -228,7 +228,7 @@ Agent Plugins 1.0 可移植文件直接位于 `.agents/`：`plugin.json`、`skil
 
 ## Opinion 演化候选
 
-无。候选规则通过已配置的 Opinion provider 提交，禁止在此晋升。
+无。候选规则通过 `opinion-manager` 提交并由用户确认，禁止在此自动晋升。
 ```
 <!-- /agents-init:template -->
 
@@ -273,15 +273,16 @@ Agent Plugins 1.0 可移植文件直接位于 `.agents/`：`plugin.json`、`skil
 1. 使用只读命令检查事实。
 2. 填写有证据支持的 Profile 值，未确定的命令保留为 `TODO`。
 3. 预演初始化器并展示碰撞项。
-4. 确认同一分发包内的 `project-orchestrator` 与 `agent-pack` 可用，获得授权后应用。
+4. 确认同一分发包内的 `project-orchestrator`、`agent-pack` 与 `opinion-manager` 可用，获得授权后应用。
 5. 解析 JSON 并验证路由文件。
+6. 调用 `opinion-manager`，让用户选择配置方式；公开模板目录为空时只提供自定义生成或跳过。
 
 ### 既有项目
 
 1. 保留现有文件并识别其权威性。
 2. 与 v6 比较职责，不以文件名是否相同作为判断依据。
 3. 先创建机器可读 Profile。
-4. 只有 `project-orchestrator` 与 `agent-pack` 验证通过后，才精简重复的 Agent 入口说明。
+4. 只有 `project-orchestrator`、`agent-pack` 与 `opinion-manager` 验证通过后，才精简重复的 Agent 入口说明。
 5. 保持历史 Task/Case 与能力源完整，随后使用 `agent-pack` 盘点。
 6. 只有得到明确授权，才能把个人 Opinion 内容移入私有权威源。
 
@@ -299,8 +300,8 @@ v5 把生命周期与扩展管理合并在 `project-runtime` 中，Profile 位�
 ## 8. 验收标准
 
 - 所有生成的 JSON 文档均可解析。
-- `AGENTS.md` 与路由文件指向同一个 Project Profile、`project-orchestrator` 与 `agent-pack`。
+- `AGENTS.md` 与路由文件指向同一个 Project Profile、`project-orchestrator`、`agent-pack` 与 `opinion-manager`。
 - 只有一个 Skill 负责项目生命周期：`project-orchestrator`；只有一个工具负责扩展能力：`agent-pack`。
-- Opinion 已配置为独立 provider，或明确标记为不存在。
+- Opinion provider 配置为 `opinion-manager`；`OPINION.md` 可以保持空白。
 - 个人规则、凭据、token、私有路径或私有 Skill 内容均未进入公开模板。
 - 除非用户逐项批准替换，否则保留现有文件。

@@ -1,0 +1,23 @@
+{
+  "name": "opinion-manager",
+  "version": "0.1.0",
+  "description": "用版本化模板、用户说明或逐条选择生成和维护 Agent Opinion。",
+  "author": {
+    "name": "lc4t"
+  },
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Opinion Manager",
+    "shortDescription": "生成、组合、审查与维护 Agent 行为规则",
+    "longDescription": "支持导入既有规则、组合版本化场景模板、通过问题逐条推荐规则，最终生成一份可人工编辑并保留来源信息的 OPINION.md。",
+    "developerName": "lc4t",
+    "category": "Productivity",
+    "capabilities": [
+      "opinion-import",
+      "template-composition",
+      "guided-rule-selection",
+      "opinion-review"
+    ],
+    "defaultPrompt": "使用 $opinion-manager 为当前环境生成或维护 OPINION.md。"
+  }
+}
