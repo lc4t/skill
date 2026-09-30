@@ -1,5 +1,15 @@
 # 更新记录
 
+## 2026-09-30
+
+### opinion-manager 0.2.0
+
+- 支持模板系列的平行变体，使用 `family/variant@major.minor.patch` 精确选择；规则与个人 Profile 同样维护独立版本。
+- 新增 `publish`、`profile`、`updates`、`compare`、`verify` 命令和 `compose --profile`；发布版本不可覆盖，所有写入需确认完整预览指纹。
+- 生成完整 `OPINION.md` 和包含全部来源快照的 `opinion.lock.json`；支持离线重建、内容指纹核验及人工修改保护。
+- 提供个人 Profile 派生、三方升级冲突预览、明确的冲突处理和规则停用；查看更新不会改变项目内容。
+- 新增版本契约、操作验收说明及真实文件命令测试。公开规则和模板目录保持空白。
+
 ## 2026-09-29
 
 ### 6.1.0

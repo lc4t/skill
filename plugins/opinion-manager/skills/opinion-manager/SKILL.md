@@ -1,13 +1,13 @@
 ---
 name: opinion-manager
-description: 生成、组合、审查和维护用户与 Agent 之间的行为规则。用户要求创建或更新 OPINION.md、导入 AGENTS.md 或其他既有说明、选择聊天/工作汇报/Web coding/PPT/设计模板、逐条配置规则、根据问答推荐规则，或按当前 Opinion 审查交付物时使用。
+description: 生成、组合、审查和维护用户与 Agent 之间的行为规则。用户要求创建或更新 OPINION.md、导入既有说明、选择模板变体和版本、维护个人 Profile、检查规则升级与冲突、逐条配置规则，或按当前 Opinion 审查交付物时使用。
 ---
 
 # Opinion Manager（Agent 行为规则管理）
 
 ## 定位
 
-把用户确认的表达方式、协作方式、判断标准、交付要求和开发规范整理为一份可人工编辑的 `OPINION.md`。模板只提供候选规则；用户确认后的 `OPINION.md` 是当前环境的权威内容。
+把用户确认的思考方式、表达方式、协作方式、判断标准、交付要求、审美偏好和开发规范整理为一份完整且可人工编辑的 `OPINION.md`。模板提供候选规则；用户确认后的 `OPINION.md` 是当前环境的权威内容。使用版本化 Profile 时配套保存 `opinion.lock.json`，供核验与重建使用。
 
 保持职责边界：
 
@@ -17,6 +17,22 @@ description: 生成、组合、审查和维护用户与 Agent 之间的行为规
 - `agent-pack` 管理 Plugin、Skill 与 MCP。
 
 禁止根据一次对话自动形成长期规则。新增、删除或改变规则适用范围前，必须展示最终内容并取得用户确认。
+
+## 版本化配置与升级
+
+配置新环境或维护版本时，先完整读取 [版本契约与操作说明](../../references/versioning.md)。使用 `../../runtime/opinion_manager.py` 的版本化命令：
+
+1. 读取 `catalog --catalog <规则目录>`，展示每个系列的变体、版本、说明和完整规则。每个系列选择一个变体，各个系列可以组合。
+2. 三种配置模式统一进入个人 Profile：自定义生成使用 `--custom-file`；简单模式使用精确的 `--template family/variant@VERSION`；复杂模式使用精确的 `--rule ID@VERSION`，或者逐条确认完整模板中的规则并通过 overrides 停用未选择条目。
+3. `profile` 默认生成预览。向用户展示最终 Profile 的有效规则、来源、自定义内容和冲突；确认后使用预览的 `confirmation_sha256` 及 `--apply --confirm` 保存不可变版本。
+4. `compose --profile <文件> --project <目录> --output json` 预览完整正文和锁定文件。取得用户确认后使用本次预览指纹写入，随后执行 `verify`。
+5. 查看升级使用只读 `updates`；升级使用 `profile --from-profile <旧文件> --version <新版本>`，保留个人内容，逐项审阅三方冲突，再生成新正文。
+
+公开版本目录 `../../catalog/rules/` 与 `../../catalog/templates/` 当前为空。没有已批准内容时使用个人自定义 Profile 或跳过配置。个人内容只能保存在用户指定的私有环境，禁止放入本公开仓库。
+
+用户只需确认展示的规则内容；Agent 负责使用正确的预览指纹。禁止自行确认、自动选择最新版本、覆盖已有发布版本或自动把观察结果纳入稳定规则。
+
+人工修改会使锁定核验报告差异。更新前重新读取 `OPINION.md`，把用户保留的内容纳入新的 Profile，审阅完整差异；经过用户确认后方可用当前文件指纹 `--accept-current` 写入。该选项不得用于跳过读取、导入和确认。
 
 ## 三种配置模式
 
@@ -34,7 +50,7 @@ description: 生成、组合、审查和维护用户与 Agent 之间的行为规
 
 ### 模板组合
 
-用户希望快速配置时使用。读取 `../../templates/*.json` 中已经公开并经过用户批准的模板说明和版本。模板格式遵循 [template.schema.json](../../references/template.schema.json)：
+用户希望快速配置时使用。新配置使用版本化目录与 Profile 流程。已有旧格式配置可读取 `../../templates/*.json` 中经过批准的模板说明和版本，格式遵循 [template.schema.json](../../references/template.schema.json)：
 
 1. 展示模板名称、适用场景、版本和简短说明。
 2. 允许选择一个或多个模板。
@@ -58,7 +74,7 @@ description: 生成、组合、审查和维护用户与 Agent 之间的行为规
 
 公开模板目录为空时，引导选择模式也暂不可用。
 
-## 确定性工具
+## 旧格式兼容工具
 
 模板目录与合并由 `../../runtime/opinion_manager.py` 处理：
 
@@ -86,14 +102,14 @@ python3 ../../runtime/opinion_manager.py compose \
 
 ## 文件契约
 
-最终只生成一份 `OPINION.md`。文件包含：
+规则正文集中到一份 `OPINION.md`。版本化流程另有不可变 Profile 和 `opinion.lock.json`。旧格式正文包含：
 
 - 机器可读的模板版本、已选择规则编号和生成时间；
 - 用户可直接阅读和编辑的规则正文；
 - 每条模板规则的稳定编号；
 - 用户自定义规则正文。
 
-人工修改后的文件继续有效。后续重新生成前读取当前文件、预览完整差异，并保留用户仍然确认的自定义内容。
+人工修改后的文件继续有效。后续重新生成前读取当前文件、预览完整差异，并保留用户仍然确认的自定义内容。版本化流程禁止用旧格式 `compose --custom-file` 绕过锁定核验；有锁定文件的项目必须使用 Profile 流程。
 
 用户粘贴的个人规则只用于生成其当前环境的 `OPINION.md`，禁止复制到公开模板目录、示例、测试或文档。
 
@@ -128,5 +144,6 @@ Opinion 只指导和审查交付物，不创建 Task/Case，不修改项目进�
 - 已展示最终完整内容；
 - 只有用户确认的规则进入 `OPINION.md`；
 - 模板版本、规则编号和自定义内容可追溯；
+- 使用版本化流程时，规则与模板精确锁定，Profile 发布版本不可覆盖，`verify` 核验通过；
 - 文件写入后重新读取并核对；
 - 没有修改项目生命周期、能力清单或 Git 状态。

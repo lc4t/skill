@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Opinion Profile snapshot",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "id", "version", "templates", "rules", "sources", "overrides", "custom", "derived_from"],
+  "properties": {
+    "schema_version": {"const": "2.0"},
+    "id": {"$ref": "rule.schema.json#/properties/id"},
+    "version": {"$ref": "rule.schema.json#/properties/version"},
+    "templates": {"type": "array", "uniqueItems": true, "items": {"type": "string", "pattern": "^[a-z0-9]+(?:[.-][a-z0-9]+)*/[a-z0-9]+(?:[.-][a-z0-9]+)*@(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"}},
+    "rules": {"type": "array", "uniqueItems": true, "items": {"$ref": "versioned-template.schema.json#/properties/rules/items"}},
+    "sources": {
+      "type": "object", "additionalProperties": false, "required": ["templates", "rules"],
+      "properties": {
+        "templates": {"type": "array", "items": {"$ref": "#/$defs/templateSource"}},
+        "rules": {"type": "array", "items": {"$ref": "#/$defs/ruleSource"}}
+      }
+    },
+    "overrides": {"type": "object", "propertyNames": {"$ref": "rule.schema.json#/properties/id"}, "additionalProperties": {"anyOf": [{"type": "null"}, {"$ref": "rule.schema.json"}]}},
+    "custom": {"anyOf": [{"type": "null"}, {"type": "string", "pattern": "\\S"}]},
+    "derived_from": {"anyOf": [{"type": "null"}, {"type": "object", "additionalProperties": false, "required": ["id", "version", "sha256"], "properties": {"id": {"$ref": "rule.schema.json#/properties/id"}, "version": {"$ref": "rule.schema.json#/properties/version"}, "sha256": {"$ref": "#/$defs/hash"}}}]}
+  },
+  "$defs": {
+    "hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "templateSource": {
+      "type": "object", "additionalProperties": false, "required": ["ref", "sha256", "value"],
+      "properties": {"ref": {"$ref": "#/properties/templates/items"}, "sha256": {"$ref": "#/$defs/hash"}, "value": {"$ref": "versioned-template.schema.json"}}
+    },
+    "ruleSource": {
+      "type": "object", "additionalProperties": false, "required": ["ref", "sha256", "value"],
+      "properties": {"ref": {"$ref": "versioned-template.schema.json#/properties/rules/items"}, "sha256": {"$ref": "#/$defs/hash"}, "value": {"$ref": "rule.schema.json"}}
+    }
+  }
+}

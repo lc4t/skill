@@ -1,0 +1,165 @@
+# Opinion 变体、版本与个人 Profile
+
+## 身份与选择
+
+- 模板系列 `family` 标识用途，例如 `work-email`。
+- 模板变体 `variant` 标识同一用途下的平行偏好，例如 `formal-report`。各个变体维护独立版本。
+- 模板引用为 `family/variant@VERSION`，规则引用为 `ID@VERSION`。版本使用无前导零的 `major.minor.patch`。省略版本、使用 `latest` 和版本范围都会被拒绝。
+- 同一个系列在一份 Profile 中只能选择一个变体和版本。不同系列可以组合。
+- 原子规则包含 `id`、`version`、`slot`、`title`、`level`、`scopes`、`text`。`level` 为 `required` 或 `preferred`。
+- `slot` 表示一项行为选择。同一个有效 slot 出现两条规则会终止生成；相同规则和版本会去重，相同规则的不同版本会报告冲突。用于不同场景的独立选择应分配不同 slot。
+- 模板包含 `family`、`variant`、`version`、`name`、`description`、`scopes` 和精确规则引用数组 `rules`。模板名称与说明用于帮助用户选择。
+
+本文中的名称只说明数据格式。公开目录当前没有任何模板和规则。
+
+## 文件与版本
+
+每个规则和模板版本分别保存在规则目录：
+
+- `rules/ID/versions/VERSION.json`
+- `templates/FAMILY/VARIANT/versions/VERSION.json`
+
+每个项目的个人 Profile 保存在 `.opinion/profiles/ID/versions/VERSION.json`。Profile 包含精确模板引用、直接选择的规则、完整来源快照、个人 overrides、自定义正文及派生来源指纹。旧版本保留。项目根目录保存完整的 `OPINION.md` 和 `opinion.lock.json`。
+
+锁定文件包含完整 Profile 快照、Profile 指纹、正文指纹和渲染格式版本。运行 Agent 时只需读取完整正文；重建和核验不需要访问模板仓库或其他项目的本机路径。相同 Profile 在相同渲染格式下生成相同正文，正文没有变化的生成时间。
+
+指纹使用 SHA-256：JSON 使用 UTF-8、按字段名称排序、无额外空格的规范序列化；正文使用原始 UTF-8 内容。调整 JSON 排版不会改变内容指纹。
+
+`publish` 和 `profile` 只创建新版本，重复发布完全相同内容返回 `unchanged`；相同身份与版本的不同内容被拒绝。工具不会修改已发布文件。使用中发现已锁定来源被人工修改时，升级检查和修订都会终止。
+
+版本含义：
+
+- patch：拼写、名称或说明等不改变行为的修订。工具检查规则正文、等级、适用范围和 slot；模板检查有效规则与适用范围。
+- minor：符合既有目标的行为完善或新增规则；发布者必须审查兼容性，用户确认后才能采用。
+- major：改变既有目标、删除约束或引入不兼容行为；发布者必须说明适用条件并重新验证。
+
+任何版本更新都需要预览与确认。工具可以校验结构和依赖；行为兼容性需要内容审查。
+
+## 通用命令约定
+
+以下命令在安装包根目录执行，要求 Python 3.11 及以上。`/path/to/project` 必须已经存在。使用用户明确指定的私有目录保存个人内容，公开仓库中不得保存个人 Profile、来源文件或私有规则目录。
+
+所有写入默认预览。预览 JSON 包含 `confirmation_sha256`；向用户展示完整内容并取得确认后，在相同命令后追加 `--apply --confirm SHA256`。用户批准的是规则内容，Agent 负责传递指纹。任何相关内容在批准后改变，都必须重新预览。
+
+查看公开规则目录：
+
+```bash
+python3 plugins/opinion-manager/runtime/opinion_manager.py catalog \
+  --catalog plugins/opinion-manager/catalog --output json
+```
+
+目录为空时，使用自定义生成或跳过配置。
+
+## 自定义生成
+
+读取用户已有说明，整理后展示完整规则。用户确认后使用文件编辑工具保存到用户指定的私有文件。已有规则文件可以直接使用，无需重复复制。
+
+预览个人 Profile：
+
+```bash
+python3 plugins/opinion-manager/runtime/opinion_manager.py profile \
+  --project /path/to/project --id private.my-opinion --version 1.0.0 \
+  --custom-file /path/to/confirmed-rules.md
+```
+
+确认并保存 Profile 后，预览完整项目正文和锁定文件：
+
+```bash
+python3 plugins/opinion-manager/runtime/opinion_manager.py compose \
+  --project /path/to/project \
+  --profile /path/to/project/.opinion/profiles/private.my-opinion/versions/1.0.0.json \
+  --output json
+```
+
+取得这次预览的确认后追加 `--apply --confirm SHA256`。原有正文包含实际规则时，先读取并纳入 Profile，使用 `--replace` 重新预览。初始化器原样生成的空白占位内容可以直接替换。
+
+最后核验：
+
+```bash
+python3 plugins/opinion-manager/runtime/opinion_manager.py verify --project /path/to/project
+```
+
+后续自定义内容修订使用 `profile --from-profile <原文件> --id <相同编号> --version <新版本> --custom-file <完整的新自定义正文>`。`--custom-file` 替换自定义段落；新文件必须包含仍需保留的全部自定义要求。
+
+## 简单模式与复杂模式
+
+已有批准的版本化模板时，`profile` 使用 `--catalog <目录>`，并重复传入 `--template family/variant@VERSION`。预览每个系列的变体与说明，用户选择后展示最终合并内容。
+
+复杂模式可以重复传入 `--rule ID@VERSION` 逐条选择。也可以选择完整模板，然后使用 `--overrides-file <JSON文件>` 停用其中未确认的条目。问答由 Agent 交互完成，未确认的推荐不进入 Profile。
+
+overrides 是规则编号到内容的对象：值为 `null` 表示停用；值为对象时必须完整包含 `title`、`level`、`scopes`、`text`。只能修改当前来源中的规则，不能修改其编号和 slot。新增个人原子规则应在私有目录独立发布后通过 `--rule` 引入；个人自定义段落也可以表达新的要求。
+
+多个模板发布版本都保留时，`catalog` 展示全部版本和变体；工具不会替用户选择最新版本。
+
+## 私有发布与公开发布
+
+用户维护自己的版本化规则时，先创建私有规则目录，再使用文件编辑工具准备完整 JSON 文件，参考 [规则格式](rule.schema.json) 与 [版本化模板格式](versioned-template.schema.json)。禁止把个人内容写入本仓库。
+
+```bash
+python3 plugins/opinion-manager/runtime/opinion_manager.py publish \
+  --catalog /path/to/private-catalog --file /path/to/release.json
+```
+
+先发布模板依赖的精确规则版本，再发布模板。发布模板时检查所有依赖和内部 slot 冲突。
+
+公开目录发布还需要 `--public-approved`。使用此标志前必须执行 Skill 中的公开准入检查、展示待公开文件的全部内容并取得用户明确同意。标志本身不能代替用户的授权。本次分发包保持公开目录为空。
+
+## 修订、派生与升级
+
+只读查看当前变体的可用新版本：
+
+```bash
+python3 plugins/opinion-manager/runtime/opinion_manager.py updates \
+  --catalog /path/to/catalog --profile /path/to/current-profile.json
+```
+
+模板内部规则由模板版本精确选择。模板依赖出现新的规则版本时，需要模板发布者发布新的模板版本；`updates` 显示当前模板和直接选择的规则的升级候选。
+
+预览升级：
+
+```bash
+python3 plugins/opinion-manager/runtime/opinion_manager.py profile \
+  --catalog /path/to/catalog --project /path/to/project \
+  --from-profile /path/to/current-profile.json \
+  --id private.my-opinion --version 1.1.0 \
+  --template FAMILY/VARIANT@VERSION
+```
+
+同系列的新选择替换原选择，其他系列、直接规则和自定义内容继续保留。不同变体之间也可以通过同一命令切换。移除整项选择使用 `--remove-template FAMILY` 或 `--remove-rule ID`；模板内部的单条规则通过 overrides 停用。
+
+私有派生使用独立 Profile 编号，传入 `--from-profile` 并指定新的 `--id` 与版本。派生记录保留原 Profile 编号、版本和指纹；个人 overrides 归属自己的 Profile，公开来源保持原样。
+
+升级对每条个人 overrides 比较三个状态：当前来源快照、个人有效内容、新来源内容。上游改变行为且个人内容存在不同选择时，预览包含完整 `base`、`local`、`upstream`；`unresolved` 非空时禁止保存。
+
+用户确认冲突处理后，通过 `--resolutions-file` 提供规则编号到 `keep-local` 或 `use-upstream` 的映射；或者通过 `--overrides-file` 明确指定完整的新个人内容。处理文件由文件编辑工具写入。上游删除规则时，明确保留的个人规则继续留在 Profile 内。
+
+查看两个已经保存的 Profile 差异：
+
+```bash
+python3 plugins/opinion-manager/runtime/opinion_manager.py compare \
+  --from-profile /path/to/old-profile.json --to-profile /path/to/new-profile.json
+```
+
+保存新的 Profile 后还需分别预览并确认 `compose`。升级检查、Profile 预览和 Profile 发布都不会直接改变 `OPINION.md`。
+
+## 人工编辑与写入中断
+
+人工编辑的正文继续作为环境的有效内容。`verify` 会报告正文与锁定文件的差异，`compose` 会保护当前文件。
+
+处理步骤：完整读取当前正文；整理用户保留的规则并纳入新 Profile；展示新正文与当前正文的差异；取得用户确认；使用 `--accept-current <当前正文SHA256>` 重新预览并确认写入。指纹可以用 `sha256sum /path/to/project/OPINION.md` 读取。错误指纹不会解除保护。
+
+正文和锁定文件分别使用同目录临时文件原子替换。操作系统中断可能造成两个文件不同步；工具不会声称这种状态已通过核验。读取当前两份文件并确认目标 Profile 后，采用相同的显式当前正文确认流程修复。工具不使用 Git 恢复项目文件。
+
+正文文件缺失且锁定文件完整时，可以用原锁定 Profile 预览并重建完全相同的正文。先恢复原版本的核验结果，再进行升级。
+
+## 验收与实际使用
+
+1. 运行本插件测试：`python3 -m unittest discover -s plugins/opinion-manager/tests -v`。测试在被 Git 和安装器忽略的 `__pycache__/opinion-test-work/` 中创建独立真实文件，使用无个人含义的测试标签。
+2. 在独立私有项目使用自定义 Profile，检查预览没有写入；确认后检查三种文件以及 `verify` 结果。
+3. 在独立私有规则目录检查同系列两个变体、同变体两个版本的展示与精确选择；检查不同系列的组合和 slot 冲突。
+4. 检查 `updates` 只报告候选，旧 Profile 继续生成相同正文；离开规则目录仍可使用 Profile 重建。
+5. 检查个人 overrides 与上游新版本产生三方冲突，未确认时保存被拒绝；确认保留个人内容或采用上游内容后核验通过。
+6. 人工修改正文，确认 `verify` 报告差异且 `compose` 保留原文件；按导入流程生成新版本后再次核验。
+7. 用户确认整个流程后，分别整理生活项目与工作项目的私有规则；每个项目保留一份包含全部适用要求的完整正文。公开模板须单独通过内容审批。
+
+本版本管理已经确认的规则。新观察、候选规则和等待验证规则的准入流程仍需单独设计；运行工具不会自动把它们升级为稳定规则。

@@ -5,7 +5,9 @@
 - `agents-init`（仓库根目录）：创建或显式迁移项目骨架与 Project Profile；
 - `project-orchestrator`（`plugins/project-orchestrator/`）：初始化完成后管理 Task、Case、能力路由、验证、进度与受控 Git 交接；
 - `agent-pack`（`plugins/agent-pack/`）：在项目与 Codex / Cursor / Claude Code 之间盘点、校验、安装、同步、迁移与对账 Plugin、Skill、MCP。
-- `opinion-manager`（`plugins/opinion-manager/`）：通过自定义生成、已批准模板组合或逐条引导，创建和维护用户确认的 Agent 行为规则。
+- `opinion-manager`（`plugins/opinion-manager/`）：管理模板系列、平行变体与精确版本，生成完整 `OPINION.md` 和锁定快照，提供个人 Profile 派生与升级审阅。公开规则和模板目录保持空白。
+
+Opinion 配置、升级和验收步骤见 [版本契约与操作说明](plugins/opinion-manager/references/versioning.md)。可以先导入自己的已确认规则；公开模板内容须单独审批。查看目录和升级默认只读，写入须使用完整预览的确认指纹。
 
 Opinion 保持独立职责，并随完整分发包安装。公开模板目录当前为空；仓库不包含个人 Opinion、用户粘贴的规则、凭据、私有路径或私有项目内容。任何公开模板都要经过内容审查和用户明确同意。
 

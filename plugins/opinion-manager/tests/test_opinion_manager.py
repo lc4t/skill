@@ -11,11 +11,14 @@ from pathlib import Path
 
 PLUGIN_ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = PLUGIN_ROOT / "runtime" / "opinion_manager.py"
+TEST_ROOT = PLUGIN_ROOT.parents[1] / "__pycache__" / "opinion-test-work"
 sys.path.insert(0, str(SCRIPT.parent))
 import opinion_manager  # noqa: E402
 
 
 class OpinionManagerTests(unittest.TestCase):
+    def setUp(self) -> None:
+        TEST_ROOT.mkdir(parents=True, exist_ok=True)
     def run_command(self, *arguments: object) -> subprocess.CompletedProcess[str]:
         return subprocess.run(
             [sys.executable, str(SCRIPT), *(str(argument) for argument in arguments)],
@@ -31,7 +34,7 @@ class OpinionManagerTests(unittest.TestCase):
         self.assertEqual(payload["templates"], [])
 
     def test_unapproved_template_cannot_be_selected(self) -> None:
-        with tempfile.TemporaryDirectory() as directory:
+        with tempfile.TemporaryDirectory(dir=TEST_ROOT) as directory:
             project = Path(directory)
             result = self.run_command(
                 "compose",
@@ -80,7 +83,7 @@ class OpinionManagerTests(unittest.TestCase):
         self.assertEqual(sum(len(rules) for rules in selected.values()), 1)
 
     def test_custom_generation_replaces_only_known_placeholder(self) -> None:
-        with tempfile.TemporaryDirectory() as directory:
+        with tempfile.TemporaryDirectory(dir=TEST_ROOT) as directory:
             project = Path(directory)
             opinion = project / "OPINION.md"
             opinion.write_text("# 项目 Opinion 覆盖层\n\n尚未配置 Opinion。\n", encoding="utf-8")
@@ -99,7 +102,7 @@ class OpinionManagerTests(unittest.TestCase):
             self.assertIn("CUSTOM_RULE_ALPHA", content)
 
     def test_existing_opinion_requires_explicit_replace(self) -> None:
-        with tempfile.TemporaryDirectory() as directory:
+        with tempfile.TemporaryDirectory(dir=TEST_ROOT) as directory:
             project = Path(directory)
             opinion = project / "OPINION.md"
             opinion.write_text("EXISTING_CONTENT\n", encoding="utf-8")
@@ -117,7 +120,7 @@ class OpinionManagerTests(unittest.TestCase):
             self.assertEqual(opinion.read_text(encoding="utf-8"), "EXISTING_CONTENT\n")
 
     def test_edited_placeholder_requires_explicit_replace(self) -> None:
-        with tempfile.TemporaryDirectory() as directory:
+        with tempfile.TemporaryDirectory(dir=TEST_ROOT) as directory:
             project = Path(directory)
             opinion = project / "OPINION.md"
             existing = "# 项目 Opinion 覆盖层\n\n尚未配置 Opinion。\n\n用户补写的要求。\n"

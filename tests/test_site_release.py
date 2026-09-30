@@ -63,6 +63,10 @@ class SiteReleaseTests(unittest.TestCase):
             )
         )
         self.assertEqual(schema["title"], "Opinion template")
+        versioned_root = ROOT / "plugins/opinion-manager/catalog"
+        self.assertEqual(list(versioned_root.rglob("*.json")), [])
+        for directory in ("rules", "templates"):
+            self.assertTrue((versioned_root / directory / ".gitkeep").is_file())
 
 
 if __name__ == "__main__":

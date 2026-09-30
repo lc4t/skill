@@ -62,8 +62,8 @@
     {
       "id": "opinion-manager",
       "name": "opinion-manager / Agent 行为规则管理",
-      "description": "通过自定义生成、已批准模板组合或逐条引导创建和维护 OPINION.md；公开模板目录当前为空。",
-      "version": "0.1.0",
+      "description": "管理模板系列、可选变体、精确版本、个人 Profile、锁定快照和升级预览；公开目录当前为空。",
+      "version": "0.2.0",
       "status": "experimental",
       "entrypoints": {
         "agent": "./plugins/opinion-manager/skills/opinion-manager/SKILL.md",

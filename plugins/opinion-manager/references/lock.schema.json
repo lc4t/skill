@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Opinion lock snapshot",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "renderer_version", "profile", "profile_sha256", "opinion_sha256"],
+  "properties": {
+    "schema_version": {"const": "2.0"},
+    "renderer_version": {"const": "2.0"},
+    "profile": {"$ref": "profile.schema.json"},
+    "profile_sha256": {"$ref": "profile.schema.json#/$defs/hash"},
+    "opinion_sha256": {"$ref": "profile.schema.json#/$defs/hash"}
+  }
+}

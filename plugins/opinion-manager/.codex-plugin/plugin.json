@@ -1,7 +1,7 @@
 {
   "name": "opinion-manager",
-  "version": "0.1.0",
-  "description": "用版本化模板、用户说明或逐条选择生成和维护 Agent Opinion。",
+  "version": "0.2.0",
+  "description": "选择模板变体与精确版本，管理个人 Profile、锁定快照和升级预览。",
   "author": {
     "name": "lc4t"
   },
@@ -9,14 +9,17 @@
   "interface": {
     "displayName": "Opinion Manager",
     "shortDescription": "生成、组合、审查与维护 Agent 行为规则",
-    "longDescription": "支持导入既有规则、组合版本化场景模板、通过问题逐条推荐规则，最终生成一份可人工编辑并保留来源信息的 OPINION.md。",
+    "longDescription": "支持模板系列的平行变体、不可变规则和模板版本、个人 Profile 派生、升级三方检查及完整 OPINION.md 与锁定文件的确定性生成。公开目录保持空白，内容发布须经用户批准。",
     "developerName": "lc4t",
     "category": "Productivity",
     "capabilities": [
       "opinion-import",
       "template-composition",
       "guided-rule-selection",
-      "opinion-review"
+      "opinion-review",
+      "profile-versioning",
+      "opinion-lock",
+      "upgrade-preview"
     ],
     "defaultPrompt": "使用 $opinion-manager 为当前环境生成或维护 OPINION.md。"
   }

@@ -12,6 +12,9 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+import versioned
+from constants import KNOWN_PLACEHOLDERS
+
 
 PLUGIN_ROOT = Path(__file__).resolve().parents[1]
 TEMPLATE_ROOT = PLUGIN_ROOT / "templates"
@@ -19,12 +22,6 @@ PLUGIN_MANIFEST = PLUGIN_ROOT / "plugin.json"
 OPINION_FILE = "OPINION.md"
 ID_PATTERN = re.compile(r"^[a-z0-9]+(?:[.-][a-z0-9]+)*$")
 VERSION_PATTERN = re.compile(r"^[0-9]+\.[0-9]+\.[0-9]+$")
-KNOWN_PLACEHOLDERS = (
-    "# 项目 Opinion 覆盖层\n\n尚未配置 Opinion。\n\n"
-    "使用 `opinion-manager` 选择自定义生成、已批准模板组合、逐条引导或跳过。"
-    "公开模板目录可以为空；用户提供的内容只写入当前项目，禁止复制进公开模板。\n",
-    "# 项目 Opinion 覆盖层\n\n尚未配置 Opinion。\n",
-)
 
 
 class OpinionError(RuntimeError):
@@ -317,8 +314,9 @@ def catalog_markdown(catalog: OrderedDict[str, dict[str, Any]]) -> str:
         lines.append("当前没有已批准的公开模板。")
         return "\n".join(lines).rstrip() + "\n"
     for template in catalog.values():
+        identity = f"{template['family']}/{template['variant']}" if "family" in template else template["id"]
         lines.extend((
-            f"## {template['name']} `{template['id']}@{template['version']}`",
+            f"## {template['name']} `{identity}@{template['version']}`",
             "",
             template["description"],
             "",
@@ -350,15 +348,27 @@ def build_parser() -> argparse.ArgumentParser:
     compose.add_argument("--output", choices=("json", "markdown"), default="markdown")
     compose.add_argument("--apply", action="store_true")
     compose.add_argument("--replace", action="store_true")
+    versioned.add_commands(subparsers, compose, catalog)
     return parser
 
 
 def execute(args: argparse.Namespace) -> tuple[int, str]:
+    if versioned.handles(args):
+        return versioned.execute(args)
     catalog = load_catalog()
     if args.command == "catalog":
+        releases = versioned.load_catalog(versioned.PUBLIC_CATALOG)
+        combined = OrderedDict(catalog)
+        combined.update(releases["templates"])
         if args.output == "json":
-            return 0, json.dumps(catalog_payload(catalog), ensure_ascii=False, indent=2) + "\n"
-        return 0, catalog_markdown(catalog)
+            payload = catalog_payload(combined)
+            payload["rules"] = list(releases["rules"].values())
+            return 0, json.dumps(payload, ensure_ascii=False, indent=2) + "\n"
+        return 0, catalog_markdown(combined)
+
+    lock_path = args.project.expanduser() / "opinion.lock.json"
+    if lock_path.exists() or lock_path.is_symlink():
+        raise OpinionError("项目已经使用版本锁定；请用 compose --profile 更新")
 
     custom = read_custom_file(args.custom_file)
     if not args.template and not args.rule and custom is None:
@@ -387,7 +397,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     try:
         code, output = execute(args)
-    except (OpinionError, OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+    except (OpinionError, versioned.OpinionVersionError, OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
         if getattr(args, "output", "markdown") == "json":
             output = json.dumps({"ok": False, "error": str(exc)}, ensure_ascii=False, indent=2) + "\n"
         else:
