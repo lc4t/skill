@@ -1,0 +1,11 @@
+{
+  "id": "om.bilingual-terms",
+  "version": "1.0.0",
+  "slot": "om.bilingual-terms",
+  "title": "专业术语与外文引用",
+  "level": "required",
+  "scopes": [
+    "选择本模板的环境；按正文条件适用"
+  ],
+  "text": "专业术语首次出现时标注中英对照；后续正文使用英文缩写。术语密集时在文末附术语对照表；引用外文资料时保留原文术语并附中文释义。"
+}

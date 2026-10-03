@@ -1,0 +1,11 @@
+{
+  "id": "om.maintenance-chinese",
+  "version": "1.0.0",
+  "slot": "om.maintenance-language",
+  "title": "第一方技能中文维护",
+  "level": "required",
+  "scopes": [
+    "选择本模板的环境；按正文条件适用"
+  ],
+  "text": "当前项目维护的第一方 Skill 使用中文编写说明、SKILL.md 主体、模板和维护文档，确有需要时再提供其他语言。协议字段、命令、文件名和代码标识符保留工具要求的形式。第三方上游 Skill 保持原文；维护本地派生版前明确取得相应授权。"
+}

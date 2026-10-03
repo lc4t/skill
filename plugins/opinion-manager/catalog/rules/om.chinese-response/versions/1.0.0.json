@@ -1,0 +1,11 @@
+{
+  "id": "om.chinese-response",
+  "version": "1.0.0",
+  "slot": "om.chinese-response",
+  "title": "中文回复",
+  "level": "required",
+  "scopes": [
+    "选择本模板的环境；按正文条件适用"
+  ],
+  "text": "使用中文回复。引用外文资料时保留必要的原文术语，并给出中文释义。用户明确要求其他语言的交付时，遵循该交付要求。"
+}

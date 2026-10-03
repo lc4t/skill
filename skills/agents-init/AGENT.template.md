@@ -1,4 +1,4 @@
-# AGENT.template.md v6.1
+# AGENT.template.md v6.2
 
 > 适用范围：可移植的项目初始化与迁移。运行期项目生命周期由同一分发包内的 `project-orchestrator` 负责，Agent 扩展能力由 `agent-pack` 负责，Opinion 由 `opinion-manager` 负责。
 
@@ -48,7 +48,7 @@ Agent Plugins 1.0 可移植文件直接位于 `.agents/`：`plugin.json`、`skil
 {
   "$schema": "https://skill.sakanano.moe/skills/agents-init/project.schema.json",
   "schema_version": "1.0",
-  "initializer_version": "6.1.0",
+  "initializer_version": "6.2.0",
   "name": "PROJECT_NAME",
   "profile": {
     "project_type": ["PROJECT_TYPE"],
@@ -176,7 +176,7 @@ Agent Plugins 1.0 可移植文件直接位于 `.agents/`：`plugin.json`、`skil
 
 尚未配置 Opinion。
 
-使用 `opinion-manager` 选择自定义生成、已批准模板组合、逐条引导或跳过。公开模板目录可以为空；用户提供的内容只写入当前项目，禁止复制进公开模板。
+使用 `opinion-manager` 选择直接用模板、选择部分条目或从空白开始；也可基于已授权记忆提出候选。完整预览经用户确认后生效，个人内容只写入当前项目。
 ```
 <!-- /agents-init:template -->
 
@@ -275,7 +275,7 @@ Agent Plugins 1.0 可移植文件直接位于 `.agents/`：`plugin.json`、`skil
 3. 预演初始化器并展示碰撞项。
 4. 确认同一分发包内的 `project-orchestrator`、`agent-pack` 与 `opinion-manager` 可用，获得授权后应用。
 5. 解析 JSON 并验证路由文件。
-6. 调用 `opinion-manager`，让用户选择配置方式；公开模板目录为空时只提供自定义生成或跳过。
+6. 调用 `opinion-manager`，只展示直接用模板、选择模板的部分条目、从空白开始迭代；另可选择基于已授权记忆提出候选规则。选定后再完整预览与确认；从空白开始时不创建空规则版本。
 
 ### 既有项目
 

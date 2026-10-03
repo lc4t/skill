@@ -1,8 +1,8 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "opinion-manager",
-  "version": "0.2.0",
-  "description": "Create, compose, review, and evolve a user's Agent behavior rules from versioned templates, imported instructions, or guided rule selection.",
+  "version": "0.3.0",
+  "description": "Manage Agent behavior rules through templates, partial selection, blank iteration, and authorized-memory candidates, with complete previews and exact version locks.",
   "author": {
     "name": "lc4t"
   },

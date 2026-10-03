@@ -1,0 +1,11 @@
+{
+  "id": "om.report-formats",
+  "version": "1.0.0",
+  "slot": "om.report-formats",
+  "title": "多格式内容与演讲备注",
+  "level": "required",
+  "scopes": [
+    "仅在制作或检查汇报时适用"
+  ],
+  "text": "同一汇报的 PPT、HTML、Markdown 保持核心事实、结论和结构主线一致，按载体调整详略。PPT 内容页提供讲解要点及必要的页间衔接，逐页检查。Markdown 用标题、列表和必要引用组织内容；表格遵循当前所选表格规则。最终材料不夹入制作或纠错过程。"
+}

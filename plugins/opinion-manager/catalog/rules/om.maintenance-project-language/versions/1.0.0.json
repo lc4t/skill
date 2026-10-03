@@ -1,0 +1,11 @@
+{
+  "id": "om.maintenance-project-language",
+  "version": "1.0.0",
+  "slot": "om.maintenance-language",
+  "title": "按项目约定维护语言",
+  "level": "required",
+  "scopes": [
+    "选择本模板的环境；按正文条件适用"
+  ],
+  "text": "第一方 Skill、模板和维护文档采用项目明确约定的主要语言；约定缺失时先对齐维护者需求。协议字段、命令、文件名和代码标识符遵循工具契约。第三方上游材料保持原文；本地派生版记录来源和维护边界，翻译不改变运行契约。"
+}

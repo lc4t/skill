@@ -1,6 +1,6 @@
 {
   "name": "opinion-manager",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "选择模板变体与精确版本，管理个人 Profile、锁定快照和升级预览。",
   "author": {
     "name": "lc4t"
@@ -9,7 +9,7 @@
   "interface": {
     "displayName": "Opinion Manager",
     "shortDescription": "生成、组合、审查与维护 Agent 行为规则",
-    "longDescription": "支持模板系列的平行变体、不可变规则和模板版本、个人 Profile 派生、升级三方检查及完整 OPINION.md 与锁定文件的确定性生成。公开目录保持空白，内容发布须经用户批准。",
+    "longDescription": "提供经过批准的可选规则与模板；三个主入口为直接用模板、选择部分条目、从空白开始，另可基于已授权记忆提出候选。完整内容集中确认，工具分别核验指纹；支持不可变版本、个人 Profile、锁和升级保护。公开内容仍需用户逐文件批准。",
     "developerName": "lc4t",
     "category": "Productivity",
     "capabilities": [

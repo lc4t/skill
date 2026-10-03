@@ -11,7 +11,7 @@ Opinion 管理 Skill：https://skill.sakanano.moe/plugins/opinion-manager/skills
 
 必须下载完整仓库。禁止只下载 agents-init 子目录；禁止复制任何用户的 global.yml、凭据、.env 或私有路径。
 
-统一命令位于仓库根目录，会依次安装 agents-init、project-orchestrator、agent-pack、opinion-manager 四个 Plugin：
+目标项目目录须已存在；全新项目先创建目录。要求 Python 3.11 及以上。统一命令位于完整仓库根目录，会依次安装 agents-init、project-orchestrator、agent-pack、opinion-manager 四个 Plugin：
 python3 scripts/bootstrap_and_init.py --client <codex|cursor|claude> --project <absolute-path> --name <name> --project-type <csv> --vcs <vcs> --stack <csv> --runtime <runtime> --agent-cli <csv>
 
-命令默认 dry-run；审阅计划并获得用户授权后追加 --apply。成功标准为 initializer.applied=true 且 doctor.ok=true。初始化后由 opinion-manager 询问用户选择自定义生成、已批准模板组合、逐条引导或跳过；公开模板目录当前为空。
+命令默认 dry-run；审阅计划并获得用户授权后追加 --apply。成功标准为 initializer.applied=true 且 doctor.ok=true。初始化后由 opinion-manager 只展示三个主入口：直接用模板、选择模板的部分条目、从空白开始迭代；另可选择基于已授权记忆提出候选规则。选择后再展示所需内容；实际可选规则、模板变体及精确版本以 catalog 输出为准。公开模板由用户选择，个人规则、Profile 和锁只保存到目标项目的指定私有位置；正式保存前先预览 Profile 与完整正文、锁，用户一次确认内容；写前核对未变化，Agent 使用两项各自真实指纹保存、读回并 verify。版本契约见 plugins/opinion-manager/references/versioning.md。

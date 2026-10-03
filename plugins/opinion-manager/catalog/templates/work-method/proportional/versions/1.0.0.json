@@ -1,0 +1,20 @@
+{
+  "family": "work-method",
+  "variant": "proportional",
+  "version": "1.0.0",
+  "name": "证据核验与按需分析",
+  "description": "用途：按影响和复杂度选择分析深度的问题解决。 不适用：用户已要求固定层次或完整框架的任务。 这是可选择的行为偏好，不代表普遍最优做法。",
+  "scopes": [
+    "按影响和复杂度选择分析深度的问题解决。"
+  ],
+  "rules": [
+    "om.evidence-inference@1.0.0",
+    "om.test-evidence@1.0.0",
+    "om.calculations@1.0.0",
+    "om.complete-options@1.0.0",
+    "om.align-requirements@1.0.0",
+    "om.batch-questions@1.0.0",
+    "om.assumptions-authority@1.0.0",
+    "om.solutions-proportional@1.0.0"
+  ]
+}

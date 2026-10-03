@@ -1,0 +1,11 @@
+{
+  "id": "om.markdown-structure",
+  "version": "1.0.0",
+  "slot": "om.markdown-structure",
+  "title": "标题层级与主题分隔",
+  "level": "required",
+  "scopes": [
+    "选择本模板的环境；按正文条件适用"
+  ],
+  "text": "多层次内容使用 Markdown 标题分级，关键术语和结论加粗，独立主题之间使用分隔线。"
+}

@@ -1,0 +1,11 @@
+{
+  "id": "om.concrete-titles",
+  "version": "1.0.0",
+  "slot": "om.concrete-titles",
+  "title": "主题标题与定位语气",
+  "level": "required",
+  "scopes": [
+    "选择本模板的环境；按正文条件适用"
+  ],
+  "text": "标题写实际主题对象，禁止使用抽象等式或概念口号；禁止添加“给某某人的认知框架”等居高临下的定位性副标题。"
+}

@@ -36,14 +36,23 @@ class SiteReleaseTests(unittest.TestCase):
         self.assertNotIn("runtime", workflow)
 
     def test_bundled_plugins_match_manifests(self) -> None:
+        index = json.loads((ROOT / "index.json").read_text(encoding="utf-8"))
+        indexed = {item["id"]: item for item in index["skills"]}
         for name in ("project-orchestrator", "agent-pack", "opinion-manager"):
             root = ROOT / "plugins" / name
             manifest = json.loads((root / "plugin.json").read_text(encoding="utf-8"))
             adapter = json.loads((root / ".codex-plugin/plugin.json").read_text(encoding="utf-8"))
             self.assertEqual(manifest["name"], name)
             self.assertEqual(adapter["version"], manifest["version"])
+            self.assertEqual(indexed[name]["version"], manifest["version"])
             self.assertEqual(manifest["repository"], "https://github.com/lc4t/skill")
             self.assertTrue((root / "skills" / name / "SKILL.md").is_file())
+        initializer = json.loads((ROOT / "skills/agents-init/skill.json").read_text(encoding="utf-8"))
+        manifest = json.loads((ROOT / "plugin.json").read_text(encoding="utf-8"))
+        self.assertEqual(initializer["version"], manifest["version"])
+        self.assertEqual(indexed["agents-init"]["version"], manifest["version"])
+        self.assertEqual(initializer["privacy"]["public_opinion_templates_included"],
+                         any((ROOT / "plugins/opinion-manager/catalog/templates").rglob("*.json")))
 
     def test_no_project_runtime_left_in_distribution(self) -> None:
         self.assertFalse((ROOT / "skills/project-runtime").exists())
@@ -51,7 +60,7 @@ class SiteReleaseTests(unittest.TestCase):
         for path in ("plugin.json", ".codex-plugin/plugin.json", "index.json", "llms.txt"):
             self.assertNotIn("project-runtime", (ROOT / path).read_text(encoding="utf-8"), path)
 
-    def test_public_opinion_template_catalog_is_empty(self) -> None:
+    def test_versioned_catalog_dependencies_and_legacy_directory(self) -> None:
         template_root = ROOT / "plugins/opinion-manager/templates"
         self.assertEqual(
             [path.name for path in template_root.iterdir() if path.name != ".gitkeep"],
@@ -64,9 +73,33 @@ class SiteReleaseTests(unittest.TestCase):
         )
         self.assertEqual(schema["title"], "Opinion template")
         versioned_root = ROOT / "plugins/opinion-manager/catalog"
-        self.assertEqual(list(versioned_root.rglob("*.json")), [])
+        rules = {f"{item['id']}@{item['version']}": item
+                 for path in (versioned_root / "rules").rglob("*.json")
+                 for item in [json.loads(path.read_text(encoding="utf-8"))]}
+        templates = [json.loads(path.read_text(encoding="utf-8"))
+                     for path in (versioned_root / "templates").rglob("*.json")]
+        self.assertTrue(rules)
+        self.assertTrue(templates)
+        for item in templates:
+            self.assertTrue(item["rules"])
+            self.assertTrue(set(item["rules"]).issubset(rules))
+        self.assertTrue((versioned_root / "README.md").is_file())
         for directory in ("rules", "templates"):
             self.assertTrue((versioned_root / directory / ".gitkeep").is_file())
+
+
+    def test_active_opinion_entrypoints_match_available_catalog(self) -> None:
+        paths = ("README.md", "INSTALL.md", "llms.txt", "index.json", "index.html",
+                 "plugins/opinion-manager/skills/opinion-manager/SKILL.md",
+                 "plugins/opinion-manager/references/versioning.md")
+        for path in paths:
+            text = (ROOT / path).read_text(encoding="utf-8")
+            for obsolete in ("公开模板目录当前为空", "公开目录当前为空",
+                             "公开规则和模板目录保持空白", "公开目录当前没有任何",
+                             "本次分发包保持公开目录为空"):
+                self.assertNotIn(obsolete, text, path)
+        skill = (ROOT / paths[-2]).read_text(encoding="utf-8")
+        self.assertNotIn("从模板的 `questions` 字段选择", skill)
 
 
 if __name__ == "__main__":

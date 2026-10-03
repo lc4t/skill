@@ -1,0 +1,19 @@
+{
+  "family": "response-style",
+  "variant": "brief-chinese",
+  "version": "1.0.0",
+  "name": "中文简明表达",
+  "description": "用途：需要简明结论的中文沟通。 不适用：必须完整展开推导或已约定详尽交付的任务。 这是可选择的行为偏好，不代表普遍最优做法。",
+  "scopes": [
+    "需要简明结论的中文沟通。"
+  ],
+  "rules": [
+    "om.conclusion-first@1.0.0",
+    "om.chinese-response@1.0.0",
+    "om.bilingual-terms@1.0.0",
+    "om.markdown-structure@1.0.0",
+    "om.clean-deliverable@1.0.0",
+    "om.concrete-titles@1.0.0",
+    "om.response-brief@1.0.0"
+  ]
+}

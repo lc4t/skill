@@ -21,7 +21,7 @@ description: 初始化仓库或将既有仓库迁移到 agents-init v6 项目骨
 
 ## 必读材料
 
-初始化或迁移项目前，完整读取 [AGENT.template.md](AGENT.template.md)。它是 v6.1 骨架契约、中文生成模板与迁移指南，也是初始化器生成 Markdown 的唯一权威源。
+初始化或迁移项目前，完整读取 [AGENT.template.md](AGENT.template.md)。它是 v6.2 骨架契约、中文生成模板与迁移指南，也是初始化器生成 Markdown 的唯一权威源。
 
 本 Skill 必须从完整分发包使用。开始前确认根目录同时存在 `plugin.json`、`plugins/project-orchestrator/skills/project-orchestrator/SKILL.md`、`plugins/agent-pack/runtime/agent_pack_config.py` 与 `plugins/opinion-manager/runtime/opinion_manager.py`。只下载 `skills/agents-init/` 子目录时停止初始化并报告 `runtime-required`，引导用户安装完整分发包；禁止生成一个无法执行的项目契约。
 
@@ -33,7 +33,7 @@ description: 初始化仓库或将既有仓库迁移到 agents-init v6 项目骨
 4. 初始化器先验证同包 `project-orchestrator`、`agent-pack` 与 `opinion-manager`，用户确认后再使用 `--apply`；脚本无法运行时，严格按中文模板创建同一组文件，并再次确认三者可用。
 5. 初始化模式下，任一碰撞都会阻止全部写入。保留所有既有文件；迁移模式只修改用户审阅差异后明确选择的文件。
 6. 解析生成的 JSON，检查入口文件路由，并报告剩余占位符。
-7. 初始化完成后调用 `opinion-manager`，让用户选择自定义生成、已批准模板组合、逐条引导或跳过。公开模板目录为空时只提供自定义生成或跳过。
+7. 初始化完成后调用 `opinion-manager`，只展示直接用模板、选择模板的部分条目、从空白开始迭代；另可选择基于已授权记忆提出候选规则。选择后再展开完整内容，集中确认一次；从空白开始时保持占位文件，不建立空 Profile。目录为空时说明模板不可用，允许个人说明导入或跳过。
 
 预演示例：
 

@@ -1,0 +1,20 @@
+{
+  "family": "work-method",
+  "variant": "three-level",
+  "version": "1.0.0",
+  "name": "证据核验与三层方案",
+  "description": "用途：分析、比较与问题解决。 不适用：纯执行且无需方案分析的任务；用户明确排除的分支。 这是可选择的行为偏好，不代表普遍最优做法。",
+  "scopes": [
+    "分析、比较与问题解决。"
+  ],
+  "rules": [
+    "om.evidence-inference@1.0.0",
+    "om.test-evidence@1.0.0",
+    "om.calculations@1.0.0",
+    "om.complete-options@1.0.0",
+    "om.align-requirements@1.0.0",
+    "om.batch-questions@1.0.0",
+    "om.assumptions-authority@1.0.0",
+    "om.solutions-three-level@1.0.0"
+  ]
+}

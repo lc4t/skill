@@ -10,7 +10,7 @@
 - `slot` 表示一项行为选择。同一个有效 slot 出现两条规则会终止生成；相同规则和版本会去重，相同规则的不同版本会报告冲突。用于不同场景的独立选择应分配不同 slot。
 - 模板包含 `family`、`variant`、`version`、`name`、`description`、`scopes` 和精确规则引用数组 `rules`。模板名称与说明用于帮助用户选择。
 
-本文中的名称只说明数据格式。公开目录当前没有任何模板和规则。
+本文中的示例名称说明数据格式；实际可用规则、系列、变体与版本以 `catalog` 输出为准。随包候选目录说明见 `../catalog/README.md`，全部模板均为可选择的偏好。
 
 ## 文件与版本
 
@@ -37,7 +37,7 @@
 
 ## 通用命令约定
 
-以下命令在安装包根目录执行，要求 Python 3.11 及以上。`/path/to/project` 必须已经存在。使用用户明确指定的私有目录保存个人内容，公开仓库中不得保存个人 Profile、来源文件或私有规则目录。
+以下命令在完整分发仓库根目录执行，要求 Python 3.11 及以上。独立安装插件时，将示例中的 `plugins/opinion-manager/runtime/opinion_manager.py` 替换为该插件实际目录下的 `runtime/opinion_manager.py`，将 `plugins/opinion-manager/catalog` 替换为该插件的 `catalog` 目录。`/path/to/project` 必须已经存在。使用用户明确指定的私有目录保存个人内容，公开仓库中不得保存个人 Profile、来源文件或私有规则目录。
 
 所有写入默认预览。预览 JSON 包含 `confirmation_sha256`；向用户展示完整内容并取得确认后，在相同命令后追加 `--apply --confirm SHA256`。用户批准的是规则内容，Agent 负责传递指纹。任何相关内容在批准后改变，都必须重新预览。
 
@@ -62,16 +62,16 @@ python3 plugins/opinion-manager/runtime/opinion_manager.py profile \
   --custom-file /path/to/confirmed-rules.md
 ```
 
-确认并保存 Profile 后，预览完整项目正文和锁定文件：
+将 Profile 预览的 profile 对象保存为项目私有候选 JSON，正式 Profile 此时尚未保存。先以候选路径预览完整正文与锁，再集中确认内容：
 
 ```bash
 python3 plugins/opinion-manager/runtime/opinion_manager.py compose \
   --project /path/to/project \
-  --profile /path/to/project/.opinion/profiles/private.my-opinion/versions/1.0.0.json \
+  --profile /path/to/private-preview/profile.json \
   --output json
 ```
 
-取得这次预览的确认后追加 `--apply --confirm SHA256`。原有正文包含实际规则时，先读取并纳入 Profile，使用 `--replace` 重新预览。初始化器原样生成的空白占位内容可以直接替换。
+两份预览内容确认后，写入前重新核对两项指纹。先用 Profile 指纹保存正式 Profile，再把 compose 路径换成正式 Profile，用 compose 指纹保存正文与锁；完整步骤见 [首次使用说明](onboarding.md)。原有正文包含实际规则时，先读取并纳入 Profile，使用 `--replace` 重新预览。初始化器原样生成的空白占位内容可以直接替换。
 
 最后核验：
 
@@ -91,6 +91,16 @@ overrides 是规则编号到内容的对象：值为 `null` 表示停用；值�
 
 多个模板发布版本都保留时，`catalog` 展示全部版本和变体；工具不会替用户选择最新版本。
 
+## 首次配置的选择与确认
+
+首次只提供直接用模板、选择部分条目、从空白开始三个主入口，另可基于已授权记忆提出候选。使用 [首次使用说明](onboarding.md) 的流程，避免提前展开偏好问卷。
+
+Profile 和 compose 可在正式保存前各自预览。用户一次确认完整正文、来源、个人修改、差异与拟保存内容；Agent 分别使用两项实际返回指纹。写入前重新预览核对，内容变化重新审阅；未解决冲突和 blocked 状态不得写入。两次写入独立保护，不保证系统事务。
+
+默认模板只作为预览建议，确认前不生效。用户选择部分条目时保留精确模板引用并通过 overrides 停用；直接原子规则的 Profile 仅追踪原子规则更新。每个系列只选一个变体，slot 冲突须集中裁决。
+
+Agent 为适用范围与候选含义做判断；scopes 只提供元数据。工具不提供自动路由、记忆检索、成熟度计数或后台晋升。新观察只有用户确认后才能形成新规则版本。用户从空白开始时不建立空版本，已有规则保持原样。
+
 ## 私有发布与公开发布
 
 用户维护自己的版本化规则时，先创建私有规则目录，再使用文件编辑工具准备完整 JSON 文件，参考 [规则格式](rule.schema.json) 与 [版本化模板格式](versioned-template.schema.json)。禁止把个人内容写入本仓库。
@@ -102,7 +112,7 @@ python3 plugins/opinion-manager/runtime/opinion_manager.py publish \
 
 先发布模板依赖的精确规则版本，再发布模板。发布模板时检查所有依赖和内部 slot 冲突。
 
-公开目录发布还需要 `--public-approved`。使用此标志前必须执行 Skill 中的公开准入检查、展示待公开文件的全部内容并取得用户明确同意。标志本身不能代替用户的授权。本次分发包保持公开目录为空。
+公开目录发布还需要 `--public-approved`。使用此标志前必须执行 Skill 中的公开准入检查、展示待公开文件的全部内容并取得用户明确同意。标志本身不能代替用户的授权。公开目录只接收逐文件批准的规则、模板及说明；审批记录、私有来源映射、个人 Profile、锁和运行日志不能随目录复制到公开包。
 
 ## 修订、派生与升级
 
@@ -140,7 +150,7 @@ python3 plugins/opinion-manager/runtime/opinion_manager.py compare \
   --from-profile /path/to/old-profile.json --to-profile /path/to/new-profile.json
 ```
 
-保存新的 Profile 后还需分别预览并确认 `compose`。升级检查、Profile 预览和 Profile 发布都不会直接改变 `OPINION.md`。
+修订可先预览新 Profile 与 compose，再集中确认完整结果；两份工具指纹分别用于保存。升级检查、Profile 预览和 Profile 发布都不会直接改变 `OPINION.md`。
 
 ## 人工编辑与写入中断
 
@@ -162,4 +172,4 @@ python3 plugins/opinion-manager/runtime/opinion_manager.py compare \
 6. 人工修改正文，确认 `verify` 报告差异且 `compose` 保留原文件；按导入流程生成新版本后再次核验。
 7. 用户确认整个流程后，分别整理生活项目与工作项目的私有规则；每个项目保留一份包含全部适用要求的完整正文。公开模板须单独通过内容审批。
 
-本版本管理已经确认的规则。新观察、候选规则和等待验证规则的准入流程仍需单独设计；运行工具不会自动把它们升级为稳定规则。
+本版本管理已经确认的规则。Agent 可根据已授权记录提出私有候选，用户确认后才发布新版本；成熟度计数和灰度晋升由项目另行维护，运行工具不会自动执行。

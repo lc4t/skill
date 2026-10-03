@@ -3,18 +3,30 @@
   "name": "agents-init v6 / Project Profile 初始化与迁移",
   "description": "创建或迁移通用项目骨架与 Project Profile；随包 opinion-manager 管理用户确认的 Agent 行为规则。",
   "schema_version": "1.0",
-  "version": "6.1.0",
+  "version": "6.2.0",
   "status": "stable",
   "language": "zh-CN",
   "license": "CC-BY-4.0",
   "created_at": "2026-07-02",
-  "updated_at": "2026-09-29",
-  "authors": [{"name": "lc4t"}],
-  "tags": ["agents", "project-init", "project-profile", "agent-plugins", "codex", "claude-code", "cursor"],
+  "updated_at": "2026-10-02",
+  "authors": [
+    {
+      "name": "lc4t"
+    }
+  ],
+  "tags": [
+    "agents",
+    "project-init",
+    "project-profile",
+    "agent-plugins",
+    "codex",
+    "claude-code",
+    "cursor"
+  ],
   "template": {
     "path": "./AGENT.template.md",
-    "version": "v6.1",
-    "title": "AGENT.template.md v6.1",
+    "version": "v6.2",
+    "title": "AGENT.template.md v6.2",
     "design_principle": "初始化、生命周期编排、扩展能力管理、Opinion 管理与领域交付职责分离。"
   },
   "entrypoints": {
@@ -25,22 +37,54 @@
     "initializer": "./scripts/init_project.py"
   },
   "files": [
-    {"path": "./SKILL.md", "role": "agent-entry", "required": true},
-    {"path": "./AGENT.template.md", "role": "skeleton-contract", "required": true},
-    {"path": "./scripts/init_project.py", "role": "deterministic-initializer", "required": true},
-    {"path": "./project.schema.json", "role": "project-profile-schema", "required": true},
-    {"path": "./index.html", "role": "browser-page", "required": true},
-    {"path": "./skill.json", "role": "metadata", "required": true}
+    {
+      "path": "./SKILL.md",
+      "role": "agent-entry",
+      "required": true
+    },
+    {
+      "path": "./AGENT.template.md",
+      "role": "skeleton-contract",
+      "required": true
+    },
+    {
+      "path": "./scripts/init_project.py",
+      "role": "deterministic-initializer",
+      "required": true
+    },
+    {
+      "path": "./project.schema.json",
+      "role": "project-profile-schema",
+      "required": true
+    },
+    {
+      "path": "./index.html",
+      "role": "browser-page",
+      "required": true
+    },
+    {
+      "path": "./skill.json",
+      "role": "metadata",
+      "required": true
+    }
   ],
   "commands": [
     {
       "id": "init",
-      "triggers": ["初始化项目", "生成 AGENTS.md", "创建 Project Profile"],
+      "triggers": [
+        "初始化项目",
+        "生成 AGENTS.md",
+        "创建 Project Profile"
+      ],
       "description": "扫描仓库、预览冲突并在确认后创建 v6 骨架。"
     },
     {
       "id": "migrate",
-      "triggers": ["迁移 agents-init", "升级项目 Agent 结构", "从 project-runtime 迁移"],
+      "triggers": [
+        "迁移 agents-init",
+        "升级项目 Agent 结构",
+        "从 project-runtime 迁移"
+      ],
       "description": "保留现有项目事实和工作数据，把 v5 Profile 升级到 v6 并迁移职责边界。"
     }
   ],
@@ -59,7 +103,7 @@
     "personal_global_rules_included": false,
     "credentials_included": false,
     "project_opinion_placeholder_only": true,
-    "public_opinion_templates_included": false
+    "public_opinion_templates_included": true
   },
   "compatibility": {
     "agent_plugins": "1.0.0",

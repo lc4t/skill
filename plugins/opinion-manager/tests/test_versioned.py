@@ -65,10 +65,23 @@ class VersionedOpinionTests(unittest.TestCase):
         preview = self.command(*args)
         return self.command(*args, "--apply", "--confirm", preview["confirmation_sha256"])
 
-    def test_empty_versioned_public_catalog(self) -> None:
+    def test_public_catalog_dependencies_compose_complete_previews(self) -> None:
         payload = self.command("catalog", "--catalog", versioned.PUBLIC_CATALOG)
-        self.assertEqual(payload["templates"], [])
-        self.assertEqual(payload["rules"], [])
+        self.assertTrue(payload["templates"])
+        self.assertTrue(payload["rules"])
+        by_ref = {f"{rule['id']}@{rule['version']}": rule for rule in payload["rules"]}
+        for template in payload["templates"]:
+            ref = f"{template['family']}/{template['variant']}@{template['version']}"
+            with self.subTest(template=ref):
+                preview = self.command("profile", "--catalog", versioned.PUBLIC_CATALOG,
+                    "--project", self.project, "--id", "fixture.public-preview",
+                    "--version", "1.0.0", "--template", ref)
+                self.assertFalse(preview["unresolved"])
+                selected = {row["ref"] for row in preview["profile"]["sources"]["rules"]}
+                self.assertEqual(selected, set(template["rules"]))
+                for rule_ref in selected:
+                    self.assertIn(by_ref[rule_ref]["text"], preview["content"])
+                self.assertFalse((self.project / ".opinion").exists())
 
     def test_missing_exact_version_fails_without_writes(self) -> None:
         self.seed()
@@ -286,10 +299,15 @@ class VersionedOpinionTests(unittest.TestCase):
     def test_publication_requires_explicit_public_approval(self) -> None:
         path = self.file("release.json", self.rule())
         args = ("publish", "--catalog", versioned.PUBLIC_CATALOG, "--file", path)
+        before = {str(item.relative_to(versioned.PUBLIC_CATALOG)): item.read_bytes()
+                  for item in versioned.PUBLIC_CATALOG.rglob("*.json")}
         preview = self.command(*args)
         result = self.command(*args, "--apply", "--confirm", preview["confirmation_sha256"], success=False)
         self.assertIn("公开内容需要用户批准", result["error"])
-        self.assertEqual(list(versioned.PUBLIC_CATALOG.rglob("*.json")), [])
+        after = {str(item.relative_to(versioned.PUBLIC_CATALOG)): item.read_bytes()
+                 for item in versioned.PUBLIC_CATALOG.rglob("*.json")}
+        self.assertEqual(after, before)
+        self.assertFalse((versioned.PUBLIC_CATALOG / "rules/fixture.alpha/versions/1.0.0.json").exists())
 
     def test_custom_only_profile_and_compare(self) -> None:
         custom = self.root / "custom.md"

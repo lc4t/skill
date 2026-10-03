@@ -1,0 +1,39 @@
+{
+  "family": "scenario",
+  "variant": "concise-project",
+  "version": "1.0.0",
+  "name": "简明沟通与项目交付组合",
+  "description": "用途：需要简明沟通、按需分析和项目语言维护的任务。 不适用：已要求完整固定分析框架的任务。 这是可选择的行为偏好，不代表普遍最优做法。",
+  "scopes": [
+    "需要简明沟通、按需分析和项目语言维护的任务。"
+  ],
+  "rules": [
+    "om.conclusion-first@1.0.0",
+    "om.chinese-response@1.0.0",
+    "om.bilingual-terms@1.0.0",
+    "om.markdown-structure@1.0.0",
+    "om.clean-deliverable@1.0.0",
+    "om.concrete-titles@1.0.0",
+    "om.response-brief@1.0.0",
+    "om.evidence-inference@1.0.0",
+    "om.test-evidence@1.0.0",
+    "om.calculations@1.0.0",
+    "om.complete-options@1.0.0",
+    "om.align-requirements@1.0.0",
+    "om.batch-questions@1.0.0",
+    "om.assumptions-authority@1.0.0",
+    "om.solutions-proportional@1.0.0",
+    "om.versioned-files@1.0.0",
+    "om.device-readable@1.0.0",
+    "om.semantic-wrap@1.0.0",
+    "om.editable-diagrams@1.0.0",
+    "om.consistent-items@1.0.0",
+    "om.report-context@1.0.0",
+    "om.report-formats@1.0.0",
+    "om.report-review@1.0.0",
+    "om.tables-compact@1.0.0",
+    "om.portable-files@1.0.0",
+    "om.rules-tools@1.0.0",
+    "om.maintenance-project-language@1.0.0"
+  ]
+}

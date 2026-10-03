@@ -27,11 +27,13 @@ class OpinionManagerTests(unittest.TestCase):
             text=True,
         )
 
-    def test_catalog_can_be_empty_until_templates_are_approved(self) -> None:
-        result = self.run_command("catalog", "--output", "json")
-        self.assertEqual(result.returncode, 0, result.stderr or result.stdout)
-        payload = json.loads(result.stdout)
-        self.assertEqual(payload["templates"], [])
+    def test_explicit_empty_catalog_remains_supported(self) -> None:
+        with tempfile.TemporaryDirectory(dir=TEST_ROOT) as directory:
+            result = self.run_command("catalog", "--catalog", directory, "--output", "json")
+            self.assertEqual(result.returncode, 0, result.stderr or result.stdout)
+            payload = json.loads(result.stdout)
+            self.assertEqual(payload["templates"], [])
+            self.assertEqual(payload["rules"], [])
 
     def test_unapproved_template_cannot_be_selected(self) -> None:
         with tempfile.TemporaryDirectory(dir=TEST_ROOT) as directory:

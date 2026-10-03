@@ -1,0 +1,11 @@
+{
+  "id": "om.editable-diagrams",
+  "version": "1.0.0",
+  "slot": "om.editable-diagrams",
+  "title": "可视化图形、源码与展示质量",
+  "level": "required",
+  "scopes": [
+    "选择本模板的环境；按正文条件适用"
+  ],
+  "text": "结构复杂或流程性的内容配套直观的可视化图形，不能只有文字堆砌或仅交付未渲染的图形源码。根据任务选择 Draw.io、Mermaid、Graphviz 或其他合适工具，保留可编辑或可复现来源。最终展示图完成排版，保证实际尺寸下清晰可读，并采用当前项目明确选择的作图规范；源码作为备用交付。"
+}

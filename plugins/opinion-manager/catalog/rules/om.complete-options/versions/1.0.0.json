@@ -1,0 +1,11 @@
+{
+  "id": "om.complete-options",
+  "version": "1.0.0",
+  "slot": "om.complete-options",
+  "title": "可行选项与排除理由",
+  "level": "required",
+  "scopes": [
+    "选择本模板的环境；按正文条件适用"
+  ],
+  "text": "给二选一之前先穷尽可行选项，被排除的选项说明排除理由。"
+}

@@ -3,14 +3,14 @@
     "id": "sakanano-cloud-skills",
     "name": "Agents Init Plugin",
     "description": "可安装的项目初始化器，附带项目生命周期、扩展能力与 Opinion 管理。",
-    "version": "0.5.0",
-    "updated_at": "2026-09-29",
+    "version": "0.6.0",
+    "updated_at": "2026-10-02",
     "homepage": "./index.html",
     "future_domain": "skill.sakanano.moe"
   },
   "plugin": {
     "manifest": "./plugin.json",
-    "version": "6.1.0",
+    "version": "6.2.0",
     "install_unit": "repository-root",
     "bundled_plugins": [
       "./plugins/project-orchestrator/plugin.json",
@@ -26,7 +26,7 @@
       "id": "agents-init",
       "name": "agents-init v6 / Project Profile 初始化与迁移",
       "description": "创建或迁移项目骨架；写入前验证同包 project-orchestrator、agent-pack 与 opinion-manager。",
-      "version": "6.1.0",
+      "version": "6.2.0",
       "status": "stable",
       "entrypoints": {
         "browser": "./skills/agents-init/index.html",
@@ -62,8 +62,8 @@
     {
       "id": "opinion-manager",
       "name": "opinion-manager / Agent 行为规则管理",
-      "description": "管理模板系列、可选变体、精确版本、个人 Profile、锁定快照和升级预览；公开目录当前为空。",
-      "version": "0.2.0",
+      "description": "三个首次主入口与可选记忆候选；一次内容确认后分别保存 Profile、正文与锁，支持精确版本和个人修改保护。",
+      "version": "0.3.0",
       "status": "experimental",
       "entrypoints": {
         "agent": "./plugins/opinion-manager/skills/opinion-manager/SKILL.md",
