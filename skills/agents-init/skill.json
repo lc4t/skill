@@ -97,7 +97,8 @@
     ".agents/plugin.json",
     ".agents/mcp.json",
     ".agents/moe.sakanano.agent-pack/project.json",
-    ".agent-doc/"
+    ".agent-doc/",
+    "memory/"
   ],
   "privacy": {
     "personal_global_rules_included": false,

@@ -59,7 +59,11 @@ class InitProjectTests(unittest.TestCase):
             self.assertEqual(profile["runtime"]["capability_manager"], "agent-pack")
             self.assertEqual(profile["runtime"]["distribution"], "bundled")
             self.assertEqual(profile["opinion"]["provider"], "opinion-manager")
+            self.assertEqual(profile["opinion"]["loading_mode"], "tiered")
+            self.assertEqual(profile["memory"], {"provider": "project-orchestrator", "root": "memory",
+                                                 "index_command": None, "check_command": None, "policy": None})
             self.assertTrue((root / "docs/drafts/.gitkeep").exists())
+            self.assertTrue((root / "memory/.gitkeep").exists())
             payload = json.loads(result.stdout)
             self.assertEqual(payload["runtime"]["source"], "bundled")
             self.assertTrue(payload["runtime"]["lifecycle"].startswith("project-orchestrator@"))
@@ -69,7 +73,26 @@ class InitProjectTests(unittest.TestCase):
             self.assertIn("# Example Project — Agent 执行入口", agents)
             self.assertIn("project-orchestrator", agents)
             self.assertNotIn("project-runtime", agents)
-            self.assertIn("# 项目专属规则", (root / "AGENT.RULES.md").read_text())
+            rules = (root / "AGENT.RULES.md").read_text()
+            self.assertIn("# 项目专属规则", rules)
+            for phrase in ("## 记忆", "写入去向", "不写入记忆", "召回", "客户端私有记忆", "收尾"):
+                self.assertIn(phrase, rules)
+            self.assertIn("`memory` 段声明的记忆索引", agents)
+            self.assertIn("`fallback` 时完整读取 `OPINION.md`", agents)
+            summary = (root / ".agent-doc/chat-summary.md").read_text()
+            for heading in ("## 待确认假设", "## 未解决冲突", "## Opinion 演化候选"):
+                self.assertIn(heading, summary)
+            self.assertIn("只保存尚未处理的事项与指向权威位置的指针", summary)
+
+    def test_profile_schema_declares_every_generated_top_level_field(self) -> None:
+        schema = json.loads((SCRIPT.parents[1] / "project.schema.json").read_text(encoding="utf-8"))
+        inputs = init_project.Inputs(Path("."), "Example", "example", ("code",), "github", ("python",), "local", ("codex",))
+        profile = json.loads(init_project.files_for(inputs)[init_project.PROFILE_PATH])
+        self.assertLessEqual(set(profile), set(schema["properties"]))
+        self.assertLessEqual(set(schema["required"]), set(profile))
+        self.assertNotIn("memory", schema["required"])
+        self.assertIn(profile["memory"]["provider"], schema["properties"]["memory"]["properties"]["provider"]["enum"])
+        self.assertIn(profile["opinion"]["loading_mode"], schema["properties"]["opinion"]["properties"]["loading_mode"]["enum"])
 
     def test_generated_markdown_uses_named_chinese_template_blocks(self) -> None:
         templates = init_project.load_templates()

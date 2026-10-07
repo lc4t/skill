@@ -44,7 +44,20 @@
       "properties": {
         "provider": {"type": ["string", "null"]},
         "project_overlay": {"type": ["string", "null"]},
-        "strict_mode": {"enum": ["smart", "strict", "disabled"]}
+        "strict_mode": {"enum": ["smart", "strict", "disabled"]},
+        "loading_mode": {"enum": ["tiered", "full"]}
+      }
+    },
+    "memory": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["provider"],
+      "properties": {
+        "provider": {"enum": ["project-orchestrator", "project"]},
+        "root": {"anyOf": [{"$ref": "#/$defs/relativePath"}, {"type": "null"}]},
+        "index_command": {"type": ["string", "null"]},
+        "check_command": {"type": ["string", "null"]},
+        "policy": {"anyOf": [{"$ref": "#/$defs/relativePath"}, {"type": "null"}]}
       }
     },
     "capabilities": {

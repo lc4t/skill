@@ -79,6 +79,8 @@ AGENT.md
 ├── plan.md
 ├── progress.md
 └── chat-summary.md
+memory/
+└── .gitkeep
 docs/
 ├── refs/README.md
 └── drafts/.gitkeep
