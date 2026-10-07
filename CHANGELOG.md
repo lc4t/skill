@@ -1,6 +1,8 @@
 # 更新记录
 
-## 未发布
+## 未发布 — Opinion Manager 0.4.0 / Agents Init 6.3.0 / Project Orchestrator 1.5.0
+
+- `project-orchestrator` 改为在本仓库直接维护，不再经 `scripts/export_plugins.py` 导出；`agent-pack` 仍由可信源码根白名单导出。
 
 ### opinion-manager
 
@@ -21,6 +23,7 @@
 
 - 新增只依赖标准库的条目式记忆工具 `runtime/memory.py`：一条记忆一个文件，索引实时生成；提供 `index`、`list`、`check`、`create`、`verify`、`retire`，写入类动作默认只预览。
 - `check` 报告结构问题、失效的来源路径、已晋升仍在用的条目，以及项目参数文件声明的索引、启动层与会话摘要预算；到期条目只标注，不计为失败。
+- Skill 增加记忆的读取、记录与收尾检查，以及 Opinion 分层加载时的读取与核对步骤。
 
 ## 2026-10-02 — Opinion Manager 0.3.0 / Agents Init 6.2.0
 

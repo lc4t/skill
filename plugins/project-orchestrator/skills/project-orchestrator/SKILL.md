@@ -62,6 +62,7 @@ description: 按项目契约统一执行会话发现、Task/Case 选择、能力
 - `manifest` 与 `capability-registry`；
 - `opinion-command`、`opinion-strict-mode` 与项目 Opinion 入口；
 - `commit-policy`、`branch-policy` 与 `push-policy`；
+- `memory` 声明的记忆提供方、目录、命令与参数文件；
 - 隐私目录、生成输出与禁止路径。
 
 `agent-pack` 读取的机器契约位于 `.agents/moe.sakanano.agent-pack/project.json`：其 `capabilities` 区块声明可移植 Plugin 根目录、外部 Plugin 目录、独立 Skill 根目录、可移植/原生 MCP 来源、客户端策略、本地凭据环境文件与导入目标。所有相对路径都必须限制在项目根目录内。本 Skill 不写该文件。
@@ -92,6 +93,8 @@ description: 按项目契约统一执行会话发现、Task/Case 选择、能力
 4. 只有当前任务授权覆盖私有 Case 或 Task 上下文时才能展开读取。
 
 已经位于 Task 目录时，先读取任务简报和本地进度，再读项目 backlog。已经位于 Case 上下文时，使用配置的下一步命令，禁止依靠记忆重建状态。
+
+Project Profile 声明了 `memory` 时，恢复状态后读取记忆索引：`provider` 为 `project-orchestrator` 时运行随包的 `runtime/memory.py index --project <项目>`，为 `project` 时运行其 `index_command`。索引每条一行，说明何时应当想起该条记忆；只在当前任务命中时读取条目正文。依据某条记忆行动前，核对其中提到的文件、命令与外部对象仍然存在；标注为可能过期的条目先核实再使用。
 
 ## 4. 路由能力
 
@@ -143,6 +146,8 @@ Opinion 是独立的指导/审查能力。项目声明 Opinion provider，且 `O
 1. **实施前**：使用明确的交付物信号请求适用指导。
 2. **交付前**：请求独立检查，并通过 provider 自身的演化流程记录未解决冲突或可复用反馈。
 
+provider 支持分层加载且规则已声明时，实施前读取核心规则与规则束索引，任务命中触发条件或判断不清时读取对应规则束，交付前用 provider 的核对命令比对本次交付的信号与已读取的规则束。provider 返回 `fallback` 或不可用时完整读取 `OPINION.md`。
+
 禁止在本 Skill 内解释、存储或演化 Opinion 规则；禁止让 Opinion provider 选择 Task/Case 状态、路径、进度或 Git 操作。`OPINION.md` 仍为空白时跳过规则检查并记录未配置状态。provider 不可用时，明确报告指导/检查降级；只有项目策略允许时才能继续。
 
 ## 7. 验证与记录
@@ -162,6 +167,15 @@ Opinion 是独立的指导/审查能力。项目声明 Opinion provider，且 `O
 - 直接改动：简洁交接与验证结果。
 
 禁止把推断结果记录为已确认 outcome。
+
+记录可复用的项目事实时遵守项目的记忆约定：
+
+- 每类信息只有一个权威位置，其他位置只留指针；进行中的工作状态属于 Task 或 Case，行为与表达偏好属于 Opinion provider 的候选流程。
+- 能从文件或版本历史直接得到的内容、已完成工作的流水、只对当前对话有用的内容不写入记忆。
+- 客户端自带的记忆功能只保存该客户端自身的运行事实；项目事实写入仓库。
+- 使用随包工具时，先用 `memory.py create` 预览再写入，`description` 写明何时应当想起这条记忆；内容已晋升为规则或已经失效时用 `retire` 退役。
+
+结束一个里程碑前运行记忆检查：随包工具为 `memory.py check`，自有实现为 Profile 的 `check_command`。先处理结构问题与失效的来源路径；到期条目核实后用 `verify` 更新。体积预算、保留窗口与复核间隔由项目自己的参数文件规定。
 
 ## 8. 限定范围的 Git 交付
 
@@ -191,5 +205,6 @@ dirty worktree 中禁止宽泛暂存。禁止重写、丢弃或吸收无关改�
 - Task/Case 选择有依据且状态为最新；
 - 已按声明能力路由项目 Tool 与叶子 Skill；
 - 已运行相关测试、渲染和 Opinion 检查，或明确说明省略项；
+- 项目声明了记忆提供方时，已运行记忆检查，新写入的条目符合项目的记忆约定；
 - 无关 worktree 改动保持原样；
 - commit 与 push 操作符合用户授权。

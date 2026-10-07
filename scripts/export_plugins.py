@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""从可信源码目录确定性导出公开的 project-orchestrator 与 agent-pack Plugin，默认只检查差异。"""
+"""从可信源码目录确定性导出公开的 agent-pack Plugin，默认只检查差异。project-orchestrator 在本仓库直接维护。"""
 
 from __future__ import annotations
 
@@ -16,12 +16,6 @@ from pathlib import Path
 MAX_FILE_BYTES = 2 * 1024 * 1024
 PUBLIC_REPOSITORY = "https://github.com/lc4t/skill"
 PLUGINS: dict[str, tuple[str, ...]] = {
-    "project-orchestrator": (
-        "plugin.json",
-        ".codex-plugin/plugin.json",
-        "skills/project-orchestrator/SKILL.md",
-        "skills/project-orchestrator/agents/openai.yaml",
-    ),
     "agent-pack": (
         "plugin.json",
         ".codex-plugin/plugin.json",
@@ -139,7 +133,7 @@ def main() -> int:
         "--source",
         type=Path,
         required=True,
-        help="包含 project-orchestrator/ 与 agent-pack/ 两个 Plugin 源码目录的父目录",
+        help="包含 agent-pack/ Plugin 源码目录的父目录",
     )
     parser.add_argument("--destination", type=Path, default=Path(__file__).resolve().parents[1] / "plugins")
     parser.add_argument("--apply", action="store_true", help="应用白名单内的差异；默认只检查")

@@ -4,13 +4,13 @@
     "name": "Agents Init Plugin",
     "description": "可安装的项目初始化器，附带项目生命周期、扩展能力与 Opinion 管理。",
     "version": "0.6.0",
-    "updated_at": "2026-10-02",
+    "updated_at": "2026-10-08",
     "homepage": "./index.html",
     "future_domain": "skill.sakanano.moe"
   },
   "plugin": {
     "manifest": "./plugin.json",
-    "version": "6.2.0",
+    "version": "6.3.0",
     "install_unit": "repository-root",
     "bundled_plugins": [
       "./plugins/project-orchestrator/plugin.json",
@@ -26,7 +26,7 @@
       "id": "agents-init",
       "name": "agents-init v6 / Project Profile 初始化与迁移",
       "description": "创建或迁移项目骨架；写入前验证同包 project-orchestrator、agent-pack 与 opinion-manager。",
-      "version": "6.2.0",
+      "version": "6.3.0",
       "status": "stable",
       "entrypoints": {
         "browser": "./skills/agents-init/index.html",
@@ -38,12 +38,13 @@
     {
       "id": "project-orchestrator",
       "name": "project-orchestrator / 项目生命周期编排",
-      "description": "按项目契约选择 Task/Case、路由 Tool 与叶子 Skill、验证并做受控 Git 交付。",
-      "version": "1.4.0",
+      "description": "按项目契约选择 Task/Case、路由 Tool 与叶子 Skill、验证并做受控 Git 交付；附带条目式项目记忆工具。",
+      "version": "1.5.0",
       "status": "stable",
       "entrypoints": {
         "agent": "./plugins/project-orchestrator/skills/project-orchestrator/SKILL.md",
-        "metadata": "./plugins/project-orchestrator/plugin.json"
+        "metadata": "./plugins/project-orchestrator/plugin.json",
+        "runtime": "./plugins/project-orchestrator/runtime/memory.py"
       }
     },
     {
@@ -62,8 +63,8 @@
     {
       "id": "opinion-manager",
       "name": "opinion-manager / Agent 行为规则管理",
-      "description": "三个首次主入口与可选记忆候选；一次内容确认后分别保存 Profile、正文与锁，支持精确版本和个人修改保护。",
-      "version": "0.3.0",
+      "description": "三个首次主入口与可选记忆候选；一次内容确认后分别保存 Profile、正文与锁，支持精确版本和个人修改保护；可选的分层加载与项目私有的候选、灰度记账。",
+      "version": "0.4.0",
       "status": "experimental",
       "entrypoints": {
         "agent": "./plugins/opinion-manager/skills/opinion-manager/SKILL.md",

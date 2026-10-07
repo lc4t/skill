@@ -1,4 +1,4 @@
-# AGENT.template.md v6.2
+# AGENT.template.md v6.3
 
 > 适用范围：可移植的项目初始化与迁移。运行期项目生命周期由同一分发包内的 `project-orchestrator` 负责，Agent 扩展能力由 `agent-pack` 负责，Opinion 由 `opinion-manager` 负责。
 
@@ -50,7 +50,7 @@ Agent Plugins 1.0 可移植文件直接位于 `.agents/`：`plugin.json`、`skil
 {
   "$schema": "https://skill.sakanano.moe/skills/agents-init/project.schema.json",
   "schema_version": "1.0",
-  "initializer_version": "6.2.0",
+  "initializer_version": "6.3.0",
   "name": "PROJECT_NAME",
   "profile": {
     "project_type": ["PROJECT_TYPE"],
