@@ -7,6 +7,9 @@
 - 新增可选的分层加载：Profile 可声明常驻模板系列、按需规则束、交付信号与路由，声明随 Profile 一起预览、确认和锁定。带声明的 Profile 使用 `schema_version` 2.1；不带声明的 Profile 仍为 2.0，指纹、锁与正文渲染不变。
 - 新增只读 `context` 命令：`core` 输出常驻规则与规则束索引，`bundle` 输出指定规则束，`index` 给出各部分规模，`check` 核对 Agent 声明的交付信号与已读取的规则束。核对失败、未声明或项目设为完整读取时返回 `fallback`。
 - `profile` 新增 `--loading-file` 与 `--remove-loading`；`compare` 与修订预览显示声明的前后差异。
+- 新增 `lifecycle` 命令，在项目私有目录记录候选、证据快照、人工裁决与灰度使用；所有写入先预览再凭指纹确认，证据保留不可变副本。工具只记账，不发布规则，也不自动晋升。
+- `use` 事件可记录逐条规则结果、读取的规则束与漏读；漏读记为阻断。`status` 附带规则与规则束的覆盖视图。
+- 同一 Profile 的新版本沿用旧版本中规则指纹未变的使用记录；`queue --titles` 输出未裁决候选的标题清单。
 
 ## 2026-10-02 — Opinion Manager 0.3.0 / Agents Init 6.2.0
 

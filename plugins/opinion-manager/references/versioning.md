@@ -99,7 +99,7 @@ Profile 和 compose 可在正式保存前各自预览。用户一次确认完整
 
 默认模板只作为预览建议，确认前不生效。用户选择部分条目时保留精确模板引用并通过 overrides 停用；直接原子规则的 Profile 仅追踪原子规则更新。每个系列只选一个变体，slot 冲突须集中裁决。
 
-Agent 为适用范围与候选含义做判断；scopes 只提供元数据。工具不替 Agent 判断任务属于哪个场景，也不提供记忆检索、成熟度计数或后台晋升；Profile 声明分层加载后，工具只按用户确认的声明切分正文，并核对 Agent 声明的交付信号。新观察只有用户确认后才能形成新规则版本。用户从空白开始时不建立空版本，已有规则保持原样。
+Agent 为适用范围与候选含义做判断；scopes 只提供元数据。工具不替 Agent 判断任务属于哪个场景，不检索记忆，也不在后台自动晋升；候选与使用次数可以用「候选、灰度与使用记录」一节的命令记账，裁决始终来自用户；Profile 声明分层加载后，工具只按用户确认的声明切分正文，并核对 Agent 声明的交付信号。新观察只有用户确认后才能形成新规则版本。用户从空白开始时不建立空版本，已有规则保持原样。
 
 ## 分层加载
 
@@ -148,6 +148,46 @@ python3 plugins/opinion-manager/runtime/opinion_manager.py context check --proje
 - 保存前可用 `context core --profile <候选 Profile>` 预览切分结果，此时不读取项目锁。
 
 判断任务属于哪个场景、声明哪些信号，始终由 Agent 负责；判断不清时一并读取。维护规则本身的任务读取完整正文。
+
+## 候选、灰度与使用记录
+
+`lifecycle` 命令在项目内的私有目录保存候选、证据快照、人工裁决和灰度使用记录。它只记账，不写 `OPINION.md`、规则目录或 Profile；每个项目各自维护状态，互不引用。
+
+```bash
+python3 plugins/opinion-manager/runtime/opinion_manager.py lifecycle queue --project /path/to/project --store .opinion/lifecycle
+python3 plugins/opinion-manager/runtime/opinion_manager.py lifecycle status --project /path/to/project --store .opinion/lifecycle
+python3 plugins/opinion-manager/runtime/opinion_manager.py lifecycle event --project /path/to/project --store .opinion/lifecycle --file 项目内事件.json
+```
+
+`event` 默认只预览，返回完整状态变化与 `confirmation_sha256`；追加 `--apply --confirm <指纹>` 才写入。指纹只核对操作完整性，`human_confirmed` 必须来自用户原话。事件与证据文件必须位于项目内，证据在写入时保留不可变副本；原文件之后可以继续增长，副本被改动则阻断后续操作。
+
+事件的 `kind` 与字段：
+
+1. `capture`：`id`、`content`（完整的 `title`、`text`、`scopes`）。同一编号的内容不可修改，修订使用新编号。
+2. `observe`：`id`、`occurrence`、`validation`（`pending`、`passed`、`failed`）、`fixture`。
+3. `presented`：`id`、`content_sha256`，证据须证明完整内容已展示给用户。
+4. `decision`：`id`、`decision`（`accepted`、`rejected`、`held`）、`human_confirmed: true`、`content_sha256`。`accepted` 只允许据此准备 Profile。
+5. `adopt`：`human_confirmed: true`、当前 `profile_sha256`。先通过 `verify`，随后该 Profile 版本记为灰度。
+6. `use`：`occurrence`、`rules`（当前 Profile 的精确规则引用）、`passed`、`user_changed`、`fixture`。可选字段：
+   - `results`：为每条规则给出 `passed`、`not-applicable` 或 `violated`；
+   - `loaded_bundles`：本次读取的按需规则束；
+   - `routing_miss`：本应读取却没有读取的规则束；
+   - `date`：`YYYY-MM-DD`，用于显示规则最近一次使用。
+7. `formalize`：`human_confirmed: true`、当前 `profile_sha256`。只改变上线标签，不改规则正文。
+
+计数规则：
+
+- `occurrence` 是项目内工作记录的相对路径，按前两级目录归为一个独立场景，同一任务的多个阶段只计一次。默认接受 `tasks`、`cases`、`reviews`、`projects`、`journal` 五个顶层目录，可用 `--occurrence-root` 改写。
+- `fixture: true` 的记录不计入任何成熟度。
+- 候选每新增一次独立真实发生次数 n，推荐信用增加 n/(n+1)，达到 1 时标记待推荐，展示后扣 1。出现 `failed` 的候选显示为待处理。这是默认参数，没有经过大量使用验证。
+- `use` 未通过、用户改动了结果、或存在 `routing_miss` 时记为阻断；有阻断的版本不能转正式，须在新版本中解决。
+- 至少两个独立的真实成功使用且无阻断时，`status` 标记 `ready_for_review`。它只表示可以提交复盘，不会自动转正式。
+
+`status` 在当前正文通过核验时附带覆盖视图：每条规则的独立成功使用次数、违反次数与最近使用日期，从未使用的规则；Profile 声明了分层加载时，还包括每个规则束被读取和实际用到的次数、漏读次数，以及从未用到的规则束。复盘时据此判断「正式」覆盖到了哪些规则。
+
+同一 Profile 编号发布新版本后，旧版本的使用记录在其全部规则指纹未变时沿用到新版本，并计入独立成功使用次数；规则被修改或个人修订后，相关记录不再沿用。沿用需要读取旧版本的 Profile 文件并核对指纹，默认位置为项目的 `.opinion/profiles`，可用 `--profiles-root` 指定；找不到或指纹不符时不沿用，并在 `not_carried` 中列出。旧版本的阻断不沿用，但违反记录仍可在覆盖视图中看到。
+
+`queue --titles` 只输出尚未裁决候选的标题与适用范围，便于在普通任务中留意是否出现了对应情形；候选全文、证据与次数只在维护规则时展开。
 
 ## 私有发布与公开发布
 
@@ -220,4 +260,4 @@ python3 plugins/opinion-manager/runtime/opinion_manager.py compare \
 6. 人工修改正文，确认 `verify` 报告差异且 `compose` 保留原文件；按导入流程生成新版本后再次核验。
 7. 用户确认整个流程后，分别整理生活项目与工作项目的私有规则；每个项目保留一份包含全部适用要求的完整正文。公开模板须单独通过内容审批。
 
-本版本管理已经确认的规则。Agent 可根据已授权记录提出私有候选，用户确认后才发布新版本；成熟度计数和灰度晋升由项目另行维护，运行工具不会自动执行。
+本版本管理已经确认的规则。Agent 可根据已授权记录提出私有候选，用户确认后才发布新版本；候选次数、灰度使用与覆盖情况由 `lifecycle` 命令在项目私有目录记账，工具不会自动晋升候选或把灰度版本转为正式。
