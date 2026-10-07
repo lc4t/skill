@@ -20,6 +20,9 @@ EDITABLE = {"title", "level", "scopes", "text"}
 RULE_FIELDS = EDITABLE | {"id", "version", "slot"}
 TEMPLATE_FIELDS = {"family", "variant", "version", "name", "description", "scopes", "rules"}
 PROFILE_FIELDS = {"schema_version", "id", "version", "templates", "rules", "sources", "overrides", "custom", "derived_from"}
+PROFILE_OPTIONAL_FIELDS = {"loading"}
+LOADING_FIELDS = {"core", "signals", "bundles"}
+BUNDLE_FIELDS = {"family", "trigger", "exclude", "routes"}
 
 
 class OpinionVersionError(RuntimeError):
@@ -221,10 +224,54 @@ def effective_rules(profile: dict[str, Any]) -> dict[str, Any]:
     return result
 
 
+def selected_families(profile: dict[str, Any]) -> list[str]:
+    return [parse_ref(ref, "templates")[0].split("/")[0] for ref in profile["templates"]]
+
+
+def validate_loading(profile: dict[str, Any]) -> None:
+    loading = profile["loading"]
+    fields(loading, LOADING_FIELDS, "loading")
+    strings(loading["core"], "loading.core", empty=True)
+    if not isinstance(loading["signals"], dict) or not loading["signals"]:
+        fail("loading.signals 必须是非空对象")
+    for key, values in loading["signals"].items():
+        identifier(key)
+        strings(values, f"loading.signals.{key}")
+        for item in values:
+            identifier(item)
+    if not isinstance(loading["bundles"], list) or not loading["bundles"]:
+        fail("loading.bundles 至少包含一个按需规则束")
+    families = set(selected_families(profile))
+    seen = set(loading["core"])
+    for family in loading["core"]:
+        if family not in families:
+            fail(f"loading.core 引用了未选择的模板系列：{family}")
+    for bundle in loading["bundles"]:
+        fields(bundle, BUNDLE_FIELDS, "loading.bundles 项")
+        family = bundle["family"]
+        if family not in families:
+            fail(f"loading.bundles 引用了未选择的模板系列：{family!r}")
+        if family in seen:
+            fail(f"模板系列在 loading 中重复出现：{family}")
+        seen.add(family)
+        string(bundle["trigger"], "trigger")
+        string(bundle["exclude"], "exclude")
+        if not isinstance(bundle["routes"], list) or not bundle["routes"]:
+            fail(f"规则束至少需要一条路由：{family}")
+        for route in bundle["routes"]:
+            if not isinstance(route, dict) or not route:
+                fail(f"路由必须是非空对象：{family}")
+            for key, values in route.items():
+                strings(values, f"routes.{key}")
+                if key not in loading["signals"] or not set(values) <= set(loading["signals"][key]):
+                    fail(f"路由使用了未声明的信号：{family}.{key}")
+
+
 def validate_profile(value: Any) -> dict[str, Any]:
-    fields(value, PROFILE_FIELDS, "Profile")
-    if value["schema_version"] != "2.0":
-        fail("Profile schema_version 必须为 2.0")
+    tiered = isinstance(value, dict) and value.get("schema_version") == "2.1"
+    fields(value, PROFILE_FIELDS | PROFILE_OPTIONAL_FIELDS if tiered else PROFILE_FIELDS, "Profile")
+    if value["schema_version"] not in ("2.0", "2.1"):
+        fail("Profile schema_version 必须为 2.0 或 2.1")
     identifier(value["id"])
     version(value["version"])
     strings(value["templates"], "templates", empty=True)
@@ -264,6 +311,8 @@ def validate_profile(value: Any) -> dict[str, Any]:
             fail("derived_from 指纹无效")
     if not effective_rules(value) and not value["custom"]:
         fail("Profile 至少需要一条有效规则或自定义内容")
+    if tiered:
+        validate_loading(value)
     return value
 
 
@@ -307,6 +356,8 @@ def comparison(old: dict[str, Any], new: dict[str, Any]) -> dict[str, Any]:
         "direct_rules": {"before": old["rules"], "after": new["rules"]},
         "rule_changes": [{"id": identity, "before": before.get(identity), "after": after.get(identity)} for identity in sorted(set(before) | set(after)) if before.get(identity) != after.get(identity)],
         "custom": {"before": old["custom"], "after": new["custom"]},
+        "loading_changed": old.get("loading") != new.get("loading"),
+        "loading": {"before": old.get("loading"), "after": new.get("loading")},
         "conflicts": conflicts,
     }
 
@@ -369,12 +420,18 @@ def profile_command(args: argparse.Namespace) -> dict[str, Any]:
                     fail(f"已经发布的来源内容发生变化：{source['ref']}")
                 catalog[kind].setdefault(source["ref"], source["value"])
     custom = read_text(args.custom_file).strip() if args.custom_file else (old["custom"] if old else None)
+    if args.loading_file and args.remove_loading:
+        fail("--loading-file 与 --remove-loading 不能同时使用")
+    # 加载声明整体替换；未提供时沿用原 Profile，保证未变更的声明不会在修订中丢失。
+    loading = read_object(args.loading_file) if args.loading_file else (None if args.remove_loading or not old else old.get("loading"))
     value = {
-        "schema_version": "2.0", "id": args.id, "version": args.version,
+        "schema_version": "2.0" if loading is None else "2.1", "id": args.id, "version": args.version,
         "templates": templates, "rules": rules, "sources": resolve(catalog, templates, rules),
         "overrides": dict(old["overrides"]) if old else {}, "custom": custom,
         "derived_from": {"id": old["id"], "version": old["version"], "sha256": digest(old)} if old else None,
     }
+    if loading is not None:
+        value["loading"] = loading
     changes = comparison(old, value) if old else {"conflicts": []}
     resolutions = read_object(args.resolutions_file) if args.resolutions_file else {}
     conflict_ids = {item["id"] for item in changes["conflicts"]}
@@ -455,13 +512,17 @@ def publish_command(args: argparse.Namespace) -> dict[str, Any]:
     return result
 
 
+def render_rule(profile: dict[str, Any], rule: dict[str, Any]) -> str:
+    level = "强制规则" if rule["level"] == "required" else "偏好"
+    origin = f"个人修订：`{profile['id']}@{profile['version']}`" if rule["id"] in profile["overrides"] else f"规则：`{rule['id']}@{rule['version']}`"
+    return "\n".join((f"## {rule['title']}", "", f"{origin}；{level}；适用：{'、'.join(rule['scopes'])}。", "", rule["text"]))
+
+
 def render(profile: dict[str, Any]) -> str:
     metadata = {"schema_version": "2.0", "profile": f"{profile['id']}@{profile['version']}", "sha256": digest(profile), "templates": profile["templates"], "rules": profile["rules"]}
     lines = ["<!-- opinion-manager:metadata", pretty(metadata).rstrip(), "-->", "", "# Agent Opinion", "", "本文件包含当前环境中用户确认的 Agent 行为、表达、判断与交付要求。"]
     for rule in effective_rules(profile).values():
-        level = "强制规则" if rule["level"] == "required" else "偏好"
-        origin = f"个人修订：`{profile['id']}@{profile['version']}`" if rule["id"] in profile["overrides"] else f"规则：`{rule['id']}@{rule['version']}`"
-        lines.extend(("", f"## {rule['title']}", "", f"{origin}；{level}；适用：{'、'.join(rule['scopes'])}。", "", rule["text"]))
+        lines.extend(("", render_rule(profile, rule)))
     if profile["custom"]:
         lines.extend(("", "## 用户自定义规则", "", profile["custom"]))
     return "\n".join(lines).rstrip() + "\n"
@@ -599,6 +660,8 @@ def add_commands(subparsers: Any, compose: argparse.ArgumentParser, catalog: arg
     profile.add_argument("--from-profile", type=Path)
     profile.add_argument("--overrides-file", type=Path)
     profile.add_argument("--resolutions-file", type=Path)
+    profile.add_argument("--loading-file", type=Path, help="完整的分层加载声明 JSON；整体替换原声明")
+    profile.add_argument("--remove-loading", action="store_true", help="移除分层加载声明，恢复为完整读取")
     publish = subparsers.add_parser("publish", help="预览或发布规则、模板版本")
     options(publish, catalog=True, mutation=True)
     publish.add_argument("--file", required=True, type=Path)

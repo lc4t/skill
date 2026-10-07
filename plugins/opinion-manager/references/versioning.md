@@ -21,7 +21,7 @@
 
 每个项目的个人 Profile 保存在 `.opinion/profiles/ID/versions/VERSION.json`。Profile 包含精确模板引用、直接选择的规则、完整来源快照、个人 overrides、自定义正文及派生来源指纹。旧版本保留。项目根目录保存完整的 `OPINION.md` 和 `opinion.lock.json`。
 
-锁定文件包含完整 Profile 快照、Profile 指纹、正文指纹和渲染格式版本。运行 Agent 时只需读取完整正文；重建和核验不需要访问模板仓库或其他项目的本机路径。相同 Profile 在相同渲染格式下生成相同正文，正文没有变化的生成时间。
+锁定文件包含完整 Profile 快照、Profile 指纹、正文指纹和渲染格式版本。运行 Agent 时读取完整正文；Profile 声明了分层加载时，可以按「分层加载」一节读取核心规则与规则束，两种方式得到的规则文字逐字一致。重建和核验不需要访问模板仓库或其他项目的本机路径。相同 Profile 在相同渲染格式下生成相同正文，正文没有变化的生成时间。
 
 指纹使用 SHA-256：JSON 使用 UTF-8、按字段名称排序、无额外空格的规范序列化；正文使用原始 UTF-8 内容。调整 JSON 排版不会改变内容指纹。
 
@@ -99,7 +99,55 @@ Profile 和 compose 可在正式保存前各自预览。用户一次确认完整
 
 默认模板只作为预览建议，确认前不生效。用户选择部分条目时保留精确模板引用并通过 overrides 停用；直接原子规则的 Profile 仅追踪原子规则更新。每个系列只选一个变体，slot 冲突须集中裁决。
 
-Agent 为适用范围与候选含义做判断；scopes 只提供元数据。工具不提供自动路由、记忆检索、成熟度计数或后台晋升。新观察只有用户确认后才能形成新规则版本。用户从空白开始时不建立空版本，已有规则保持原样。
+Agent 为适用范围与候选含义做判断；scopes 只提供元数据。工具不替 Agent 判断任务属于哪个场景，也不提供记忆检索、成熟度计数或后台晋升；Profile 声明分层加载后，工具只按用户确认的声明切分正文，并核对 Agent 声明的交付信号。新观察只有用户确认后才能形成新规则版本。用户从空白开始时不建立空版本，已有规则保持原样。
+
+## 分层加载
+
+规则较多时，可以在 Profile 中声明哪些模板系列始终读取、哪些在任务命中时再读取。声明是 Profile 的一部分，与规则一样经过完整预览、用户确认和指纹锁定；没有声明的 Profile 保持完整读取，行为与此前版本相同。
+
+声明文件是一个 JSON 对象，通过 `profile --loading-file <文件>` 整体写入：
+
+```json
+{
+  "core": ["baseline"],
+  "signals": {
+    "artifact": ["report", "email", "other"],
+    "activity": ["rule-maintenance", "none"]
+  },
+  "bundles": [
+    {
+      "family": "work-email",
+      "trigger": "撰写或审查对外邮件",
+      "exclude": "只是在回复中引用邮件内容",
+      "routes": [{"artifact": ["email"]}]
+    }
+  ]
+}
+```
+
+- `core` 列出始终读取的模板系列。直接选择的原子规则、用户自定义段，以及没有出现在声明中的模板系列，同样始终读取；新增模板不会因为漏登记而被跳过。
+- `bundles` 列出按需读取的模板系列。`trigger` 与 `exclude` 是给 Agent 的适用与不适用说明，会原样出现在索引中。
+- `signals` 是交付信号词表，`routes` 把信号映射到规则束：一条路由内的所有键都命中时该路由成立，任一路由成立即要求读取该规则束。
+- 一条规则同时属于常驻系列和按需系列时归入常驻。带声明的 Profile 使用 `schema_version` 2.1，旧版本工具会拒绝读取并给出明确错误；不带声明的 Profile 仍为 2.0，指纹不变。
+
+修订时未提供 `--loading-file` 则沿用原声明；`--remove-loading` 移除声明并恢复完整读取。移除了声明中引用的模板系列时，必须同时提供新的声明文件。
+
+读取与核对使用只读的 `context` 命令：
+
+```bash
+python3 plugins/opinion-manager/runtime/opinion_manager.py context core --project /path/to/project
+python3 plugins/opinion-manager/runtime/opinion_manager.py context bundle work-email --project /path/to/project
+python3 plugins/opinion-manager/runtime/opinion_manager.py context index --project /path/to/project
+python3 plugins/opinion-manager/runtime/opinion_manager.py context check --project /path/to/project \
+  --signal artifact=email --loaded work-email
+```
+
+- `core` 输出常驻规则、自定义段和规则束索引；`bundle` 输出指定规则束；`index` 以 JSON 给出各部分的规则数与字节数。
+- `check` 由 Agent 在交付前声明本次交付的信号和已读取的规则束，工具返回应读取与缺失的规则束。缺失时退出码为 1。信号必须取自词表。
+- 每次调用先核对锁与正文；核对失败、Profile 没有声明、或 Project Profile 的 `opinion.loading_mode` 设为 `full` 时，命令返回 `fallback`，调用方改为完整读取 `OPINION.md`。前者退出码为 2，后两者为 3。
+- 保存前可用 `context core --profile <候选 Profile>` 预览切分结果，此时不读取项目锁。
+
+判断任务属于哪个场景、声明哪些信号，始终由 Agent 负责；判断不清时一并读取。维护规则本身的任务读取完整正文。
 
 ## 私有发布与公开发布
 

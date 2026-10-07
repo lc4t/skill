@@ -379,11 +379,16 @@ class VersionedOpinionTests(unittest.TestCase):
 
     def test_versioned_schema_contracts_match_runtime_fields(self) -> None:
         references = SCRIPT.parents[1] / "references"
-        for filename, expected in (("rule.schema.json", versioned.RULE_FIELDS), ("versioned-template.schema.json", versioned.TEMPLATE_FIELDS), ("profile.schema.json", versioned.PROFILE_FIELDS)):
+        for filename, expected, optional in (("rule.schema.json", versioned.RULE_FIELDS, set()), ("versioned-template.schema.json", versioned.TEMPLATE_FIELDS, set()), ("profile.schema.json", versioned.PROFILE_FIELDS, versioned.PROFILE_OPTIONAL_FIELDS)):
             schema = json.loads((references / filename).read_text())
             self.assertEqual(set(schema["required"]), expected)
-            self.assertEqual(set(schema["properties"]), expected)
+            self.assertEqual(set(schema["properties"]), expected | optional)
             self.assertFalse(schema["additionalProperties"])
+        definitions = json.loads((references / "profile.schema.json").read_text())["$defs"]
+        for name, expected in (("loading", versioned.LOADING_FIELDS), ("bundle", versioned.BUNDLE_FIELDS)):
+            self.assertEqual(set(definitions[name]["required"]), expected)
+            self.assertEqual(set(definitions[name]["properties"]), expected)
+            self.assertFalse(definitions[name]["additionalProperties"])
 
     def test_out_of_order_patch_cannot_change_behavior(self) -> None:
         self.publish(self.rule("1.0.1"))
