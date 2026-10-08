@@ -1,5 +1,30 @@
 # 更新记录
 
+## 未发布 — Opinion Manager 0.4.0 / Agents Init 6.3.0 / Project Orchestrator 1.5.0
+
+- `project-orchestrator` 改为在本仓库直接维护，不再经 `scripts/export_plugins.py` 导出；`agent-pack` 仍由可信源码根白名单导出。
+
+### opinion-manager
+
+- 新增可选的分层加载：Profile 可声明常驻模板系列、按需规则束、交付信号与路由，声明随 Profile 一起预览、确认和锁定。带声明的 Profile 使用 `schema_version` 2.1；不带声明的 Profile 仍为 2.0，指纹、锁与正文渲染不变。
+- 新增只读 `context` 命令：`core` 输出常驻规则与规则束索引，`bundle` 输出指定规则束，`index` 给出各部分规模，`check` 核对 Agent 声明的交付信号与已读取的规则束。核对失败、未声明或项目设为完整读取时返回 `fallback`。
+- `profile` 新增 `--loading-file` 与 `--remove-loading`；`compare` 与修订预览显示声明的前后差异。
+- 新增 `lifecycle` 命令，在项目私有目录记录候选、证据快照、人工裁决与灰度使用；所有写入先预览再凭指纹确认，证据保留不可变副本。工具只记账，不发布规则，也不自动晋升。
+- `use` 事件可记录逐条规则结果、读取的规则束与漏读；漏读记为阻断。`status` 附带规则与规则束的覆盖视图。
+- 同一 Profile 的新版本沿用旧版本中规则指纹未变的使用记录；`queue --titles` 输出未裁决候选的标题清单。
+
+### agents-init
+
+- 骨架增加 `memory/`；`AGENT.RULES.md` 模板增加「记忆」一节，规定写入去向、不写入的内容、召回前核实、客户端私有记忆边界与收尾检查。
+- `AGENTS.md` 的 Session 入口增加分层加载与记忆索引两步；`chat-summary.md` 模板明确只保存未决事项与指针，三个固定小节名称不变。
+- Project Profile 增加可选的 `memory` 段与 `opinion.loading_mode`；既有 Profile 无需修改即可继续使用。体积预算、保留窗口与复核间隔等参数由各项目设定，不随模板分发。
+
+### project-orchestrator
+
+- 新增只依赖标准库的条目式记忆工具 `runtime/memory.py`：一条记忆一个文件，索引实时生成；提供 `index`、`list`、`check`、`create`、`verify`、`retire`，写入类动作默认只预览。
+- `check` 报告结构问题、失效的来源路径、已晋升仍在用的条目，以及项目参数文件声明的索引、启动层与会话摘要预算；到期条目只标注，不计为失败。
+- Skill 增加记忆的读取、记录与收尾检查，以及 Opinion 分层加载时的读取与核对步骤。
+
 ## 2026-10-02 — Opinion Manager 0.3.0 / Agents Init 6.2.0
 
 - 新增经内容批准的公开目录：五个系列、十个平行变体、31 条原子规则，规则与模板均精确为 1.0.0。

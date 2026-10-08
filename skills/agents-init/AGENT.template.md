@@ -1,4 +1,4 @@
-# AGENT.template.md v6.2
+# AGENT.template.md v6.3
 
 > 适用范围：可移植的项目初始化与迁移。运行期项目生命周期由同一分发包内的 `project-orchestrator` 负责，Agent 扩展能力由 `agent-pack` 负责，Opinion 由 `opinion-manager` 负责。
 
@@ -33,6 +33,8 @@
 │   ├── plan.md
 │   ├── progress.md
 │   └── chat-summary.md
+├── memory/
+│   └── .gitkeep
 └── docs/
     ├── refs/README.md
     └── drafts/.gitkeep
@@ -48,7 +50,7 @@ Agent Plugins 1.0 可移植文件直接位于 `.agents/`：`plugin.json`、`skil
 {
   "$schema": "https://skill.sakanano.moe/skills/agents-init/project.schema.json",
   "schema_version": "1.0",
-  "initializer_version": "6.2.0",
+  "initializer_version": "6.3.0",
   "name": "PROJECT_NAME",
   "profile": {
     "project_type": ["PROJECT_TYPE"],
@@ -69,7 +71,15 @@ Agent Plugins 1.0 可移植文件直接位于 `.agents/`：`plugin.json`、`skil
   "opinion": {
     "provider": "opinion-manager",
     "project_overlay": "OPINION.md",
-    "strict_mode": "smart"
+    "strict_mode": "smart",
+    "loading_mode": "tiered"
+  },
+  "memory": {
+    "provider": "project-orchestrator",
+    "root": "memory",
+    "index_command": null,
+    "check_command": null,
+    "policy": null
   },
   "capabilities": {
     "plugin_roots": [".agents"],
@@ -95,6 +105,10 @@ Agent Plugins 1.0 可移植文件直接位于 `.agents/`：`plugin.json`、`skil
 
 `$schema` 是公开的 Project Profile 契约。Tool 必须分别验证 `schema_version` 与 `initializer_version`。多值字段使用 JSON 数组；缺失的集成使用 `null` 或空数组，禁止杜撰命令。`runtime` 可追加项目自己的 `runtime_entry`、`session_bootstrap` 等字段，由 `project-orchestrator` 读取。
 
+`opinion.loading_mode` 为 `tiered` 时，按 Opinion Profile 中用户确认的加载声明读取核心规则与规则束；Profile 没有声明时仍然完整读取 `OPINION.md`。设为 `full` 可以让所有 Session 立即回到完整读取。
+
+`memory` 声明项目记忆的提供方。`provider` 为 `project-orchestrator` 时使用随包的条目式工具，条目保存在 `root` 目录。项目已有自己的记忆实现时把 `provider` 设为 `project`，在 `index_command` 与 `check_command` 填写生成索引和执行检查的命令，`policy` 指向项目自己的参数文件。体积预算、保留窗口、条数和复核间隔等参数由各项目设定，不随模板分发。
+
 ## 4. AGENTS.md 模板
 
 <!-- agents-init:template AGENTS.md -->
@@ -117,7 +131,8 @@ Agent Plugins 1.0 可移植文件直接位于 `.agents/`：`plugin.json`、`skil
 2. 由它读取 Project Profile、当前 Git 状态，以及当前任务必需的入口文件。
 3. 使用领域 Skill 处理具体交付物，使用确定性 Tool 执行状态变更。
 4. Plugin、Skill 与 MCP 的盘点、同步或迁移交给 `agent-pack`。
-5. `OPINION.md` 含用户确认的规则时，实施前由 `opinion-manager` 提供指导，交付前执行检查。
+5. `OPINION.md` 含用户确认的规则时，实施前由 `opinion-manager` 提供指导，交付前执行检查。Profile 声明了分层加载时，先读取核心规则与规则束索引，任务命中时读取对应规则束；工具返回 `fallback` 时完整读取 `OPINION.md`。
+6. 读取 Project Profile 的 `memory` 段声明的记忆索引。依据某条记忆行动前，按 `AGENT.RULES.md` 的记忆约定核实。
 
 ## 职责边界
 
@@ -165,6 +180,15 @@ Agent Plugins 1.0 可移植文件直接位于 `.agents/`：`plugin.json`、`skil
 
 - 默认禁止读取：未声明
 - 需要授权的外部写入：全部，除非另有明确配置
+
+## 记忆
+
+- 写入去向：每类信息只有一个权威位置，其他位置只留指针。稳定的项目事实与外部资料位置写入记忆条目；进行中的工作状态写入 Task 或 Case；行为与表达偏好经 `opinion-manager` 的候选流程确认；`.agent-doc/chat-summary.md` 只保存未决事项与指针。
+- 不写入记忆：能从文件或版本历史直接得到的内容；已在规则或本文件中的内容；已完成工作的流水；只对当前对话有用的内容。
+- 召回：记忆反映写入当时的事实。依据某条记忆行动前，核对其中提到的文件、命令与外部对象仍然存在；发现过期时更新或退役该条目。
+- 客户端私有记忆：客户端自带的记忆功能只保存该客户端自身的运行事实。项目事实、偏好与结论写入仓库，使所有客户端读到同一份内容。
+- 收尾：结束一个里程碑前生成记忆索引并运行检查。
+- 参数（体积预算、复核间隔）：未设定
 ```
 <!-- /agents-init:template -->
 
@@ -218,6 +242,8 @@ Agent Plugins 1.0 可移植文件直接位于 `.agents/`：`plugin.json`、`skil
 ```markdown
 # 会话摘要
 
+本文件只保存尚未处理的事项与指向权威位置的指针。事项有了结论后写入对应位置，并从这里移除。
+
 ## 待确认假设
 
 无。
@@ -231,6 +257,8 @@ Agent Plugins 1.0 可移植文件直接位于 `.agents/`：`plugin.json`、`skil
 无。候选规则通过 `opinion-manager` 提交并由用户确认，禁止在此自动晋升。
 ```
 <!-- /agents-init:template -->
+
+三个固定小节的名称保持不变，便于工具按标题定位。项目可以按需追加小节，例如跨 Session 的恢复摘要或定时服务的状态指针；追加小节的写法与上限由项目自己的记忆参数规定。
 
 `docs/refs/README.md`:
 
@@ -286,6 +314,16 @@ Agent Plugins 1.0 可移植文件直接位于 `.agents/`：`plugin.json`、`skil
 5. 保持历史 Task/Case 与能力源完整，随后使用 `agent-pack` 盘点。
 6. 只有得到明确授权，才能把个人 Opinion 内容移入私有权威源。
 
+### 为既有 v6 项目补充记忆与分层加载
+
+这两项都是增量，不改变已有文件的职责：
+
+1. 在 Project Profile 增加 `memory` 段与 `opinion.loading_mode`；已有自己记忆实现的项目把 `provider` 设为 `project` 并填写命令。
+2. 把 `AGENT.RULES.md` 模板中的「记忆」一节合并进项目现有文件，保留项目已有的约定与参数。
+3. `.agent-doc/chat-summary.md` 保留三个固定小节；其中已有结论的条目移入对应的权威位置。
+4. `AGENTS.md` 的 Session 入口由用户审阅差异后选择 `--replace` 或手动补充第 5、6 步。
+5. 分层加载需要在 Opinion Profile 中增加加载声明并经用户确认，由 `opinion-manager` 处理；在此之前保持完整读取。
+
 ### 从 v5 迁移
 
 v5 把生命周期与扩展管理合并在 `project-runtime` 中，Profile 位于 `.agents/moe.sakanano.project-runtime/project.json`。`--mode migrate` 检测到该文件时：
@@ -303,5 +341,6 @@ v5 把生命周期与扩展管理合并在 `project-runtime` 中，Profile 位�
 - `AGENTS.md` 与路由文件指向同一个 Project Profile、`project-orchestrator`、`agent-pack` 与 `opinion-manager`。
 - 只有一个 Skill 负责项目生命周期：`project-orchestrator`；只有一个工具负责扩展能力：`agent-pack`。
 - Opinion provider 配置为 `opinion-manager`；`OPINION.md` 可以保持空白。
+- Project Profile 声明记忆提供方；`AGENT.RULES.md` 含记忆的写入去向、召回核实与客户端私有记忆边界。
 - 个人规则、凭据、token、私有路径或私有 Skill 内容均未进入公开模板。
 - 除非用户逐项批准替换，否则保留现有文件。

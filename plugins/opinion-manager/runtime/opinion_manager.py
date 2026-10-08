@@ -12,6 +12,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+import context
+import lifecycle
 import versioned
 from constants import KNOWN_PLACEHOLDERS
 
@@ -349,10 +351,16 @@ def build_parser() -> argparse.ArgumentParser:
     compose.add_argument("--apply", action="store_true")
     compose.add_argument("--replace", action="store_true")
     versioned.add_commands(subparsers, compose, catalog)
+    context.add_command(subparsers)
+    lifecycle.add_command(subparsers)
     return parser
 
 
 def execute(args: argparse.Namespace) -> tuple[int, str]:
+    if args.command == "context":
+        return context.execute(args)
+    if args.command == "lifecycle":
+        return lifecycle.execute(args)
     if versioned.handles(args):
         return versioned.execute(args)
     catalog = load_catalog()

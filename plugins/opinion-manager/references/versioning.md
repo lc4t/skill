@@ -21,7 +21,7 @@
 
 每个项目的个人 Profile 保存在 `.opinion/profiles/ID/versions/VERSION.json`。Profile 包含精确模板引用、直接选择的规则、完整来源快照、个人 overrides、自定义正文及派生来源指纹。旧版本保留。项目根目录保存完整的 `OPINION.md` 和 `opinion.lock.json`。
 
-锁定文件包含完整 Profile 快照、Profile 指纹、正文指纹和渲染格式版本。运行 Agent 时只需读取完整正文；重建和核验不需要访问模板仓库或其他项目的本机路径。相同 Profile 在相同渲染格式下生成相同正文，正文没有变化的生成时间。
+锁定文件包含完整 Profile 快照、Profile 指纹、正文指纹和渲染格式版本。运行 Agent 时读取完整正文；Profile 声明了分层加载时，可以按「分层加载」一节读取核心规则与规则束，两种方式得到的规则文字逐字一致。重建和核验不需要访问模板仓库或其他项目的本机路径。相同 Profile 在相同渲染格式下生成相同正文，正文没有变化的生成时间。
 
 指纹使用 SHA-256：JSON 使用 UTF-8、按字段名称排序、无额外空格的规范序列化；正文使用原始 UTF-8 内容。调整 JSON 排版不会改变内容指纹。
 
@@ -99,7 +99,95 @@ Profile 和 compose 可在正式保存前各自预览。用户一次确认完整
 
 默认模板只作为预览建议，确认前不生效。用户选择部分条目时保留精确模板引用并通过 overrides 停用；直接原子规则的 Profile 仅追踪原子规则更新。每个系列只选一个变体，slot 冲突须集中裁决。
 
-Agent 为适用范围与候选含义做判断；scopes 只提供元数据。工具不提供自动路由、记忆检索、成熟度计数或后台晋升。新观察只有用户确认后才能形成新规则版本。用户从空白开始时不建立空版本，已有规则保持原样。
+Agent 为适用范围与候选含义做判断；scopes 只提供元数据。工具不替 Agent 判断任务属于哪个场景，不检索记忆，也不在后台自动晋升；候选与使用次数可以用「候选、灰度与使用记录」一节的命令记账，裁决始终来自用户；Profile 声明分层加载后，工具只按用户确认的声明切分正文，并核对 Agent 声明的交付信号。新观察只有用户确认后才能形成新规则版本。用户从空白开始时不建立空版本，已有规则保持原样。
+
+## 分层加载
+
+规则较多时，可以在 Profile 中声明哪些模板系列始终读取、哪些在任务命中时再读取。声明是 Profile 的一部分，与规则一样经过完整预览、用户确认和指纹锁定；没有声明的 Profile 保持完整读取，行为与此前版本相同。
+
+声明文件是一个 JSON 对象，通过 `profile --loading-file <文件>` 整体写入：
+
+```json
+{
+  "core": ["baseline"],
+  "signals": {
+    "artifact": ["report", "email", "other"],
+    "activity": ["rule-maintenance", "none"]
+  },
+  "bundles": [
+    {
+      "family": "work-email",
+      "trigger": "撰写或审查对外邮件",
+      "exclude": "只是在回复中引用邮件内容",
+      "routes": [{"artifact": ["email"]}]
+    }
+  ]
+}
+```
+
+- `core` 列出始终读取的模板系列。直接选择的原子规则、用户自定义段，以及没有出现在声明中的模板系列，同样始终读取；新增模板不会因为漏登记而被跳过。
+- `bundles` 列出按需读取的模板系列。`trigger` 与 `exclude` 是给 Agent 的适用与不适用说明，会原样出现在索引中。
+- `signals` 是交付信号词表，`routes` 把信号映射到规则束：一条路由内的所有键都命中时该路由成立，任一路由成立即要求读取该规则束。
+- 一条规则同时属于常驻系列和按需系列时归入常驻。带声明的 Profile 使用 `schema_version` 2.1，旧版本工具会拒绝读取并给出明确错误；不带声明的 Profile 仍为 2.0，指纹不变。
+
+修订时未提供 `--loading-file` 则沿用原声明；`--remove-loading` 移除声明并恢复完整读取。移除了声明中引用的模板系列时，必须同时提供新的声明文件。
+
+读取与核对使用只读的 `context` 命令：
+
+```bash
+python3 plugins/opinion-manager/runtime/opinion_manager.py context core --project /path/to/project
+python3 plugins/opinion-manager/runtime/opinion_manager.py context bundle work-email --project /path/to/project
+python3 plugins/opinion-manager/runtime/opinion_manager.py context index --project /path/to/project
+python3 plugins/opinion-manager/runtime/opinion_manager.py context check --project /path/to/project \
+  --signal artifact=email --loaded work-email
+```
+
+- `core` 输出常驻规则、自定义段和规则束索引；`bundle` 输出指定规则束；`index` 以 JSON 给出各部分的规则数与字节数。
+- `check` 由 Agent 在交付前声明本次交付的信号和已读取的规则束，工具返回应读取与缺失的规则束。缺失时退出码为 1。信号必须取自词表。
+- 每次调用先核对锁与正文；核对失败、Profile 没有声明、或 Project Profile 的 `opinion.loading_mode` 设为 `full` 时，命令返回 `fallback`，调用方改为完整读取 `OPINION.md`。前者退出码为 2，后两者为 3。
+- 保存前可用 `context core --profile <候选 Profile>` 预览切分结果，此时不读取项目锁。
+
+判断任务属于哪个场景、声明哪些信号，始终由 Agent 负责；判断不清时一并读取。维护规则本身的任务读取完整正文。
+
+## 候选、灰度与使用记录
+
+`lifecycle` 命令在项目内的私有目录保存候选、证据快照、人工裁决和灰度使用记录。它只记账，不写 `OPINION.md`、规则目录或 Profile；每个项目各自维护状态，互不引用。
+
+```bash
+python3 plugins/opinion-manager/runtime/opinion_manager.py lifecycle queue --project /path/to/project --store .opinion/lifecycle
+python3 plugins/opinion-manager/runtime/opinion_manager.py lifecycle status --project /path/to/project --store .opinion/lifecycle
+python3 plugins/opinion-manager/runtime/opinion_manager.py lifecycle event --project /path/to/project --store .opinion/lifecycle --file 项目内事件.json
+```
+
+`event` 默认只预览，返回完整状态变化与 `confirmation_sha256`；追加 `--apply --confirm <指纹>` 才写入。指纹只核对操作完整性，`human_confirmed` 必须来自用户原话。事件与证据文件必须位于项目内，证据在写入时保留不可变副本；原文件之后可以继续增长，副本被改动则阻断后续操作。
+
+事件的 `kind` 与字段：
+
+1. `capture`：`id`、`content`（完整的 `title`、`text`、`scopes`）。同一编号的内容不可修改，修订使用新编号。
+2. `observe`：`id`、`occurrence`、`validation`（`pending`、`passed`、`failed`）、`fixture`。
+3. `presented`：`id`、`content_sha256`，证据须证明完整内容已展示给用户。
+4. `decision`：`id`、`decision`（`accepted`、`rejected`、`held`）、`human_confirmed: true`、`content_sha256`。`accepted` 只允许据此准备 Profile。
+5. `adopt`：`human_confirmed: true`、当前 `profile_sha256`。先通过 `verify`，随后该 Profile 版本记为灰度。
+6. `use`：`occurrence`、`rules`（当前 Profile 的精确规则引用）、`passed`、`user_changed`、`fixture`。可选字段：
+   - `results`：为每条规则给出 `passed`、`not-applicable` 或 `violated`；
+   - `loaded_bundles`：本次读取的按需规则束；
+   - `routing_miss`：本应读取却没有读取的规则束；
+   - `date`：`YYYY-MM-DD`，用于显示规则最近一次使用。
+7. `formalize`：`human_confirmed: true`、当前 `profile_sha256`。只改变上线标签，不改规则正文。
+
+计数规则：
+
+- `occurrence` 是项目内工作记录的相对路径，按前两级目录归为一个独立场景，同一任务的多个阶段只计一次。默认接受 `tasks`、`cases`、`reviews`、`projects`、`journal` 五个顶层目录，可用 `--occurrence-root` 改写。
+- `fixture: true` 的记录不计入任何成熟度。
+- 候选每新增一次独立真实发生次数 n，推荐信用增加 n/(n+1)，达到 1 时标记待推荐，展示后扣 1。出现 `failed` 的候选显示为待处理。这是默认参数，没有经过大量使用验证。
+- `use` 未通过、用户改动了结果、或存在 `routing_miss` 时记为阻断；有阻断的版本不能转正式，须在新版本中解决。
+- 至少两个独立的真实成功使用且无阻断时，`status` 标记 `ready_for_review`。它只表示可以提交复盘，不会自动转正式。
+
+`status` 在当前正文通过核验时附带覆盖视图：每条规则的独立成功使用次数、违反次数与最近使用日期，从未使用的规则；Profile 声明了分层加载时，还包括每个规则束被读取和实际用到的次数、漏读次数，以及从未用到的规则束。复盘时据此判断「正式」覆盖到了哪些规则。
+
+同一 Profile 编号发布新版本后，旧版本的使用记录在其全部规则指纹未变时沿用到新版本，并计入独立成功使用次数；规则被修改或个人修订后，相关记录不再沿用。沿用需要读取旧版本的 Profile 文件并核对指纹，默认位置为项目的 `.opinion/profiles`，可用 `--profiles-root` 指定；找不到或指纹不符时不沿用，并在 `not_carried` 中列出。旧版本的阻断不沿用，但违反记录仍可在覆盖视图中看到。
+
+`queue --titles` 只输出尚未裁决候选的标题与适用范围，便于在普通任务中留意是否出现了对应情形；候选全文、证据与次数只在维护规则时展开。
 
 ## 私有发布与公开发布
 
@@ -172,4 +260,4 @@ python3 plugins/opinion-manager/runtime/opinion_manager.py compare \
 6. 人工修改正文，确认 `verify` 报告差异且 `compose` 保留原文件；按导入流程生成新版本后再次核验。
 7. 用户确认整个流程后，分别整理生活项目与工作项目的私有规则；每个项目保留一份包含全部适用要求的完整正文。公开模板须单独通过内容审批。
 
-本版本管理已经确认的规则。Agent 可根据已授权记录提出私有候选，用户确认后才发布新版本；成熟度计数和灰度晋升由项目另行维护，运行工具不会自动执行。
+本版本管理已经确认的规则。Agent 可根据已授权记录提出私有候选，用户确认后才发布新版本；候选次数、灰度使用与覆盖情况由 `lifecycle` 命令在项目私有目录记账，工具不会自动晋升候选或把灰度版本转为正式。

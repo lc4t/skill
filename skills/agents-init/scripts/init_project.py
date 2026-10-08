@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Iterable
 
 
-INITIALIZER_VERSION = "6.2.0"
+INITIALIZER_VERSION = "6.3.0"
 PLUGIN_ROOT = Path(__file__).resolve().parents[3]
 PROFILE_SCHEMA = "https://skill.sakanano.moe/skills/agents-init/project.schema.json"
 PROFILE_PATH = Path(".agents/moe.sakanano.agent-pack/project.json")
@@ -229,6 +229,14 @@ def files_for(inputs: Inputs, templates: dict[str, str] | None = None) -> dict[P
             "provider": "opinion-manager",
             "project_overlay": "OPINION.md",
             "strict_mode": "smart",
+            "loading_mode": "tiered",
+        },
+        "memory": {
+            "provider": "project-orchestrator",
+            "root": "memory",
+            "index_command": None,
+            "check_command": None,
+            "policy": None,
         },
         "capabilities": {
             "plugin_roots": [".agents"],
@@ -276,6 +284,7 @@ def files_for(inputs: Inputs, templates: dict[str, str] | None = None) -> dict[P
         Path(".agent-doc/plan.md"): render_template(templates[".agent-doc/plan.md"], replacements),
         Path(".agent-doc/progress.md"): render_template(templates[".agent-doc/progress.md"], replacements),
         Path(".agent-doc/chat-summary.md"): render_template(templates[".agent-doc/chat-summary.md"], replacements),
+        Path("memory/.gitkeep"): "",
         Path("docs/refs/README.md"): render_template(templates["docs/refs/README.md"], replacements),
         Path("docs/drafts/.gitkeep"): "",
     }
