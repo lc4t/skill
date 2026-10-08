@@ -68,9 +68,8 @@ python3 scripts/bootstrap_and_init.py \
 ├── skills/agents-init/            # 初始化器、模板与 Profile schema
 ├── plugins/
 │   ├── project-orchestrator/      # 生命周期编排 Plugin 与条目式记忆工具
-│   ├── agent-pack/                # 扩展能力管理 Plugin、CLI 与 MCP（白名单导出）
+│   ├── agent-pack/                # 扩展能力管理 Plugin、CLI 与 MCP
 │   └── opinion-manager/           # Opinion 配置、组合与审查；版本化规则、平行变体与场景模板
-├── scripts/export_plugins.py
 ├── scripts/bootstrap_and_init.py
 ├── INSTALL.md
 ├── llms.txt
@@ -79,7 +78,7 @@ python3 scripts/bootstrap_and_init.py \
 
 ## 维护与发布
 
-- `agent-pack` 由可信源码根通过 `scripts/export_plugins.py --source <源码父目录>` 白名单导出；`project-orchestrator` 与 `opinion-manager` 在本仓库维护，后者包含管理流程、确定性工具及经过批准的公共规则和模板。
+- 四个组件都在本仓库直接维护；`tests/test_public_privacy.py` 在每次测试时扫描全部已跟踪文件，拦截本机路径、同步盘路径、私钥与私有项目标识。`opinion-manager` 包含管理流程、确定性工具及经过批准的公共规则和模板。
 - 公开 Opinion 模板必须经过内容检查、测试和用户逐文件明确同意；个人规则禁止进入公开模板、示例、测试和文档。
 - Skill 主体与用户可读描述使用中文；协议字段、命令和专有名词保留原名。
 - `index.json` 是站点机器索引，`index.html` 是浏览器入口。

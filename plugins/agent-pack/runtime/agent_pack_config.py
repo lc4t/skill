@@ -1445,7 +1445,8 @@ def _print(value: dict[str, Any], output: str) -> None:
     if isinstance(counts, dict):
         print("counts: " + ", ".join(f"{key}={number}" for key, number in counts.items()))
     for operation in value.get("operations", []):
-        print(f"- {operation['action']}: {operation.get('name', '')} -> {operation.get('to', '')}")
+        target = operation.get("to") or operation.get("from", "")
+        print(f"- {operation['action']}: {operation.get('name', '')} -> {target}")
     for issue in value.get("issues", []):
         print(f"! {issue}")
     for warning in value.get("warnings", []):
