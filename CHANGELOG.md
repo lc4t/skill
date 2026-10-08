@@ -1,8 +1,9 @@
 # 更新记录
 
-## 未发布 — Opinion Manager 0.4.0 / Agents Init 6.3.0 / Project Orchestrator 1.5.0
+## 未发布 — Opinion Manager 0.4.0 / Agents Init 6.3.0 / Project Orchestrator 1.5.0 / Agent Pack 1.5.1
 
-- `project-orchestrator` 改为在本仓库直接维护，不再经 `scripts/export_plugins.py` 导出；`agent-pack` 仍由可信源码根白名单导出。
+- `project-orchestrator` 与 `agent-pack` 改为在本仓库直接维护，移除 `scripts/export_plugins.py`；原导出时的隐私扫描改为 `tests/test_public_privacy.py`，对全部已跟踪文件生效。
+- `agent-pack` 1.5.1：文本输出中的操作目标在没有 `to` 时显示 `from`。
 
 ### opinion-manager
 
