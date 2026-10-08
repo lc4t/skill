@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Iterable
 
 
-INITIALIZER_VERSION = "6.3.0"
+INITIALIZER_VERSION = "6.4.0"
 PLUGIN_ROOT = Path(__file__).resolve().parents[3]
 PROFILE_SCHEMA = "https://skill.sakanano.moe/skills/agents-init/project.schema.json"
 PROFILE_PATH = Path(".agents/moe.sakanano.agent-pack/project.json")
@@ -77,6 +77,7 @@ class Inputs:
     stack: tuple[str, ...]
     runtime: str
     agent_cli: tuple[str, ...]
+    work_mode: str = "case-workspace"
 
 
 def split_csv(value: str) -> tuple[str, ...]:
@@ -202,6 +203,26 @@ def upgrade_legacy_profile(legacy: dict) -> dict:
     return upgraded
 
 
+def configure_work_mode(profile: dict, mode: str | None) -> dict:
+    if profile.get('work') is not None and not isinstance(profile['work'], dict):
+        raise InitError('work 配置必须是对象', code='profile-invalid')
+    if mode is None:
+        return profile
+    work = dict(profile.get('work') or {})
+    if any(work.get(key) is not None and not isinstance(work[key], dict) for key in ('task', 'case')):
+        raise InitError('task/case 配置必须是对象或 null', code='profile-invalid')
+    if mode == 'case-workspace':
+        if work.get('task'):
+            work['legacy_task'] = {**work['task'], 'mode': 'migrate-only'}
+        work['task'] = None
+        work['case'] = {**(work.get('case') or {}),
+                        'root': (work.get('case') or {}).get('root', 'cases'),
+                        'artifact_mode': 'case-local'}
+    work['mode'] = mode
+    profile['work'] = work
+    return profile
+
+
 def validate_inline(label: str, value: str) -> str:
     if not value.strip():
         raise InitError(f"{label} 不能为空")
@@ -249,7 +270,12 @@ def files_for(inputs: Inputs, templates: dict[str, str] | None = None) -> dict[P
             "destination_skill_root": ".agents/skills",
             "destination_mcp": ".agents/mcp.json",
         },
-        "work": {"task": None, "case": None},
+        "work": {
+            "mode": inputs.work_mode,
+            "task": None,
+            "case": {"root": "cases", "artifact_mode": "case-local"}
+            if inputs.work_mode == "case-workspace" else None,
+        },
         "privacy": {"forbidden_default_reads": [], "generated_outputs": []},
     }
     replacements = {
@@ -263,7 +289,7 @@ def files_for(inputs: Inputs, templates: dict[str, str] | None = None) -> dict[P
     }
     agents = render_template(templates["AGENTS.md"], replacements)
     route = render_template(templates["ROUTE.md"], replacements)
-    return {
+    files = {
         Path("AGENTS.md"): agents,
         Path("AGENT.RULES.md"): render_template(templates["AGENT.RULES.md"], replacements),
         Path("OPINION.md"): render_template(templates["OPINION.md"], replacements),
@@ -288,6 +314,9 @@ def files_for(inputs: Inputs, templates: dict[str, str] | None = None) -> dict[P
         Path("docs/refs/README.md"): render_template(templates["docs/refs/README.md"], replacements),
         Path("docs/drafts/.gitkeep"): "",
     }
+    if inputs.work_mode == "case-workspace":
+        files[Path("cases/.gitkeep")] = ""
+    return files
 
 
 def validate_root(path: Path) -> Path:
@@ -504,6 +533,8 @@ def parser() -> argparse.ArgumentParser:
     result.add_argument("--runtime", required=True)
     result.add_argument("--agent-cli", type=split_csv, required=True)
     result.add_argument("--mode", choices=("init", "migrate"), default="init")
+    result.add_argument("--work-mode", choices=("case-workspace", "legacy"), default=None,
+                        help="新项目默认 case-workspace；既有项目只在显式选择后更改模式")
     result.add_argument("--replace", action="append", default=[], help="known skeleton path to replace in migrate mode")
     result.add_argument("--skip", action="append", default=[], help="known skeleton path the project does not want (migrate mode)")
     result.add_argument("--recovery-dir", type=Path, help="outside-project backup directory required for replacements")
@@ -538,8 +569,23 @@ def main(argv: list[str] | None = None) -> int:
             tuple(validate_inline("--stack", value) for value in args.stack),
             validate_inline("--runtime", args.runtime),
             tuple(validate_inline("--agent-cli", value) for value in args.agent_cli),
+            args.work_mode or ('legacy' if args.mode == 'migrate' else 'case-workspace'),
         )
         files = files_for(inputs)
+        if args.mode == "migrate" and (root / PROFILE_PATH).exists():
+            profile_file = root / PROFILE_PATH
+            if profile_file.is_symlink() or any(parent.is_symlink() for parent in profile_file.parents if parent != root):
+                raise InitError("refusing symlinked Project Profile", code="profile-invalid")
+            try:
+                current_profile = json.loads(profile_file.read_text(encoding="utf-8"))
+            except (OSError, UnicodeError, ValueError) as exc:
+                raise InitError('Project Profile 无法解析', code='profile-invalid') from exc
+            if not isinstance(current_profile, dict) or current_profile.get("schema_version") != "1.0":
+                raise InitError("unsupported Project Profile", code="profile-invalid")
+            upgraded = configure_work_mode(upgrade_legacy_profile(current_profile), args.work_mode)
+            files[PROFILE_PATH] = json_text(upgraded)
+            if upgraded.get("work", {}).get("mode") != "case-workspace":
+                files.pop(Path("cases/.gitkeep"), None)
         legacy_profile = read_legacy_profile(root)
         retire: list[Path] = []
         if legacy_profile is not None:
@@ -549,8 +595,18 @@ def main(argv: list[str] | None = None) -> int:
                     code="migrate-required",
                 )
             if not (root / PROFILE_PATH).exists():
-                files[PROFILE_PATH] = json_text(upgrade_legacy_profile(legacy_profile))
+                upgraded = configure_work_mode(upgrade_legacy_profile(legacy_profile), args.work_mode)
+                files[PROFILE_PATH] = json_text(upgraded)
+                if upgraded.get('work', {}).get('mode') != 'case-workspace':
+                    files.pop(Path('cases/.gitkeep'), None)
                 retire.append(LEGACY_PROFILE_PATH)
+        output_profile = json.loads(files[PROFILE_PATH])
+        files.pop(Path('cases/.gitkeep'), None)
+        if output_profile.get('work', {}).get('mode') == 'case-workspace':
+            case_root = (output_profile['work'].get('case') or {}).get('root', 'cases')
+            if not isinstance(case_root, str) or not case_root or Path(case_root).is_absolute() or '..' in Path(case_root).parts or '\\' in case_root or re.match(r'^[A-Za-z]:', case_root) or case_root == '.' or set(Path(case_root).parts) & {'.git', '.agents', '.codex', '.cursor', '.claude', 'local-ai', 'confidential'}:
+                raise InitError('Case root 必须是项目内明确相对目录', code='profile-invalid')
+            files[Path(case_root) / '.gitkeep'] = ''
         requested_skip = {Path(value) for value in args.skip}
         if requested_skip:
             if args.mode == "init":

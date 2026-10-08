@@ -1,0 +1,61 @@
+# Case 工作目录契约与工具
+
+`work.mode=case-workspace` 将 Case 作为唯一持久工作容器。项目自身的 Schema、创建和状态校验 Tool 保持权威，本包不假设某个项目的状态字段。缺失模式的旧项目保留原工作流，显式迁移后才切换。
+
+## 目录与引用
+
+```text
+cases/CASE-ID/
+├── CASE.md
+├── docs/（最终交付；drafts/ 保存草稿）
+├── refs/（本 Case 的输入与来源快照）
+├── data/
+├── images/
+├── scripts/
+├── work-items/（复杂子任务；可选）
+└── .agent-doc/（计划、决策、验证与迁移凭证）
+```
+
+所有目录按需创建，简单 Case 只需 CASE.md。自有文档使用相对链接并保留完整附件；项目工程、正式规则和跨 Case 的版本化公共资产继续使用原权威位置。来源包中的 AGENTS.md 和 OPINION.md 作为历史材料，不成为当前项目指令。
+
+### 最小记录与项目特化
+
+已有项目使用自己的 Case Schema 和状态工具。未声明 Case 创建工具的新项目可由 Agent 创建目录和 CASE.md，最小 Frontmatter 必须包含与目录相同的 `id`、可理解的 `title` 和 `status`；同时保存目标、下一动作、证据与决策，避免仅存文件而丢失恢复上下文。日期序号从当日现有目录取最大值加一，子工作项不取得第二套顶层生命周期。
+
+```yaml
+id: "CASE-20260101-001-example"
+title: "示例工作"
+status: "active"
+sensitivity: "shared"
+goal: "可核验的目标"
+next_action: "下一项明确动作"
+aliases: []
+legacy_ids: []
+tags: []
+deliverables: []
+evidence: []
+```
+
+示例只定义发现工具的通用输入，生产项目仍以自己的 Schema 为准。closed / done 等状态的语义、完成条件与审批由项目决定，工具不得据文件存在自行认定业务完成。
+
+## 迁移工具
+
+运行 `runtime/case_workspace.py migrate --project <项目> --map <映射.json>` 先预演。审阅映射后追加 `--apply`。映射必须有 `schema_version: "1.0"` 和 `moves` 数组，每项包含项目相对 `source`、`target`；目标必须处于 cases 的一个 Case 目录内。可选 `records` 数组包含 `path`（目标 CASE.md）、`content`（项目创建器预先生成的正文），工具只负责排他创建，不替项目认定状态。
+
+```json
+{
+  "schema_version": "1.0",
+  "moves": [{"source": "tasks/20260101-example", "target": "cases/CASE-20260101-001-example"}],
+  "records": [{"path": "cases/CASE-20260101-001-example/CASE.md", "content": "项目工具生成的完整 Case 正文"}]
+}
+```
+
+目标根目录读取 Project Profile 的 `work.case.root`，缺失时使用 `cases`。目录与单文件均可映射，目标需要位于一个明确的 Case 工作目录内。迁移器拒绝绝对路径、路径逃逸、symlink、非普通文件、源目标重叠和已有目标；预演严格零写入。应用使用同文件系统的原子排他 rename；迁移前后检查路径、文件数、字节数和 SHA-256。凭据文件及隐私目录中的文件只记录大小与文件身份，整体 rename 不读取内容，输出 `opaque_files` 明确核验边界。新 CASE.md 或迁移中途失败时撤回本次创建的记录与移动，不删除既有文件。跨文件系统或缺少原子禁止覆盖 rename 的平台失败关闭。
+
+输出 JSON 的 `moves[].manifest` 可保存到 Case `.agent-doc/` 作为迁移证据。工具执行前确保没有其他客户端修改本次源目录；此工具不提供跨进程锁。项目规则决定 Git 提交与发布，工具不执行它们。
+
+迁移后由项目 Tool 执行 Case 校验、链接检查、索引重建、Dashboard 刷新。旧 ID 记入 Case 的 `legacy_ids`，检索可使用本包 `search --project <项目> --term <词>`；只读取 CASE.md 元数据与文件名，不读取 Artifact 正文。`inspect` 输出全量 Case 文件数和体积，包含关闭状态，供项目 Dashboard 消费。它们不代替项目的完整 Schema 校验或质量门禁。
+
+## 初始化器升级
+
+新项目默认 Case 工作目录；既有项目的模式默认保留。显式使用 `init_project.py --mode migrate --work-mode case-workspace --replace .agents/moe.sakanano.agent-pack/project.json --recovery-dir <项目外目录>` 更新 Profile。原 task 配置保留为 `legacy_task`，初始化器不搬业务文件；原数据迁移由本工具的已审阅映射单独执行。私有路径、业务内容和映射只保存于目标项目，不进入公共分发包。

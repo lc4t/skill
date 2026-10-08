@@ -89,7 +89,21 @@
         "destination_mcp": {"$ref": "#/$defs/relativePath"}
       }
     },
-    "work": {"type": "object", "additionalProperties": true},
+    "work": {
+      "type": "object", "additionalProperties": true,
+      "properties": {
+        "mode": {"enum": ["case-workspace", "legacy"]},
+        "task": {"type": ["object", "null"]},
+        "legacy_task": {"type": ["object", "null"]},
+        "case": {
+          "type": ["object", "null"], "additionalProperties": true,
+          "properties": {
+            "root": {"$ref": "#/$defs/relativePath"},
+            "artifact_mode": {"enum": ["case-local", "external-references"]}
+          }
+        }
+      }
+    },
     "privacy": {
       "type": "object",
       "additionalProperties": true,

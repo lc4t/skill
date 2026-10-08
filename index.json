@@ -10,7 +10,7 @@
   },
   "plugin": {
     "manifest": "./plugin.json",
-    "version": "6.3.0",
+    "version": "6.4.0",
     "install_unit": "repository-root",
     "bundled_plugins": [
       "./plugins/project-orchestrator/plugin.json",
@@ -26,7 +26,7 @@
       "id": "agents-init",
       "name": "agents-init v6 / Project Profile 初始化与迁移",
       "description": "创建或迁移项目骨架；写入前验证同包 project-orchestrator、agent-pack 与 opinion-manager。",
-      "version": "6.3.0",
+      "version": "6.4.0",
       "status": "stable",
       "entrypoints": {
         "browser": "./skills/agents-init/index.html",
@@ -38,8 +38,8 @@
     {
       "id": "project-orchestrator",
       "name": "project-orchestrator / 项目生命周期编排",
-      "description": "按项目契约选择 Task/Case、路由 Tool 与叶子 Skill、验证并做受控 Git 交付；附带条目式项目记忆工具。",
-      "version": "1.5.0",
+      "description": "按项目模式组织 Case 工作目录或兼容既有 Task/Case；提供检索、无损迁移、验证与受控 Git 交付。",
+      "version": "1.6.0",
       "status": "stable",
       "entrypoints": {
         "agent": "./plugins/project-orchestrator/skills/project-orchestrator/SKILL.md",

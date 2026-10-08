@@ -20,7 +20,7 @@ SELF = Path(__file__).resolve().relative_to(ROOT).as_posix()
 
 
 def tracked_files() -> list[str]:
-    result = subprocess.run(["git", "ls-files"], cwd=ROOT, capture_output=True, text=True, check=False)
+    result = subprocess.run(["git", "ls-files", "--cached", "--others", "--exclude-standard"], cwd=ROOT, capture_output=True, text=True, check=False)
     if result.returncode:
         return []
     return [line for line in result.stdout.splitlines() if line]

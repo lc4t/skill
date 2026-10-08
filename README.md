@@ -34,6 +34,10 @@ python3 plugins/agent-pack/runtime/agent_pack_config.py bootstrap --plugin plugi
 
 确认计划后分别追加 `--apply`。其他支持 Agent Plugins 1.0 的客户端直接安装这四个目录。
 
+## Case 工作目录
+
+新项目默认 `work.mode=case-workspace`，持久工作、资料、过程和交付物统一归入 Case；复杂子工作项在 Case 内管理。旧项目缺失该字段时保留原 Task/Case 模式，需显式迁移。初始化器只改骨架和 Profile，业务文件迁移使用 [Case 目录工具](plugins/project-orchestrator/references/case-workspaces.md) 的完整映射、预演、Demo 与哈希核验。
+
 ## 初始化项目
 
 安装完成后，先创建目标项目目录，再从完整仓库根目录运行初始化器。命令默认 dry-run：

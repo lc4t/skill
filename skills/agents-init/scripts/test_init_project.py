@@ -44,6 +44,45 @@ class InitProjectTests(unittest.TestCase):
             self.assertFalse(payload["applied"])
             self.assertFalse((root / "AGENTS.md").exists())
 
+    def test_work_mode_default_and_legacy(self):
+        for mode in ('case-workspace', 'legacy'):
+            with self.subTest(mode=mode), tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary)
+                args = () if mode == 'case-workspace' else ('--work-mode', mode)
+                result = self.run_script(root, '--apply', *args)
+                self.assertEqual(result.returncode, 0, result.stdout)
+                profile = json.loads((root / init_project.PROFILE_PATH).read_text())
+                self.assertEqual(profile['work']['mode'], mode)
+                self.assertEqual((root / 'cases/.gitkeep').exists(), mode == 'case-workspace')
+
+    def test_migrate_preserves_custom_profile_and_explicit_mode(self):
+        for mode in (None, 'case-workspace'):
+            with self.subTest(mode=mode), tempfile.TemporaryDirectory() as temporary, tempfile.TemporaryDirectory() as recovery:
+                root = Path(temporary)
+                profile = {'schema_version': '1.0', 'name': 'Existing',
+                           'runtime': {'commit_policy': 'explicit', 'custom': True},
+                           'opinion': {'custom': 'keep'}, 'privacy': {'keep': True},
+                           'work': {'task': {'root': 'tasks'}, 'case': {'root': 'cases', 'command': 'own-tool'}}}
+                path = root / init_project.PROFILE_PATH
+                path.parent.mkdir(parents=True)
+                path.write_text(json.dumps(profile))
+                args = () if mode is None else ('--work-mode', mode)
+                result = self.run_script(root, '--mode', 'migrate', '--replace', str(init_project.PROFILE_PATH),
+                                         '--recovery-dir', recovery, '--apply', *args)
+                self.assertEqual(result.returncode, 0, result.stdout)
+                updated = json.loads(path.read_text())
+                self.assertEqual(updated['opinion'], profile['opinion'])
+                self.assertEqual(updated['privacy'], profile['privacy'])
+                self.assertEqual(updated['runtime']['custom'], True)
+                self.assertEqual(updated['runtime']['commit_policy'], 'explicit')
+                if mode is None:
+                    self.assertEqual(updated['work'], profile['work'])
+                    self.assertFalse((root / 'cases').exists())
+                else:
+                    self.assertEqual(updated['work']['legacy_task']['root'], 'tasks')
+                    self.assertIsNone(updated['work']['task'])
+                    self.assertEqual(updated['work']['case']['command'], 'own-tool')
+
     def test_apply_creates_v6_skeleton(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
@@ -52,7 +91,7 @@ class InitProjectTests(unittest.TestCase):
             profile = json.loads((root / ".agents/moe.sakanano.agent-pack/project.json").read_text())
             self.assertFalse((root / ".agents/moe.sakanano.project-runtime").exists())
             self.assertEqual(profile["schema_version"], "1.0")
-            self.assertEqual(profile["initializer_version"], "6.3.0")
+            self.assertEqual(profile["initializer_version"], "6.4.0")
             self.assertEqual(profile["$schema"], "https://skill.sakanano.moe/skills/agents-init/project.schema.json")
             self.assertEqual(profile["runtime"]["skill"], "project-orchestrator")
             self.assertEqual(profile["runtime"]["plugin"], "project-orchestrator")
@@ -246,7 +285,7 @@ class InitProjectTests(unittest.TestCase):
             self.assertFalse(legacy.parent.exists())
             self.assertEqual((recovery / ".agents/moe.sakanano.project-runtime/project.json").read_text(), original)
             profile = json.loads((root / ".agents/moe.sakanano.agent-pack/project.json").read_text())
-            self.assertEqual(profile["initializer_version"], "6.3.0")
+            self.assertEqual(profile["initializer_version"], "6.4.0")
             self.assertEqual(profile["runtime"]["skill"], "project-orchestrator")
             self.assertEqual(profile["runtime"]["capability_manager"], "agent-pack")
             self.assertEqual(profile["runtime"]["session_bootstrap"], "make brief")

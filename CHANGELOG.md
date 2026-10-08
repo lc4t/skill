@@ -1,5 +1,13 @@
 # 更新记录
 
+## 2026-10-08 — Agents Init 6.4.0 / Project Orchestrator 1.6.0
+
+- 新项目默认 Case 工作目录，专属资料与交付物就近保存，子工作项留在 Case 内。
+- Project Profile 增加 work.mode 与 Case 文件落位声明；既有项目保持原模式，显式迁移保留原配置和 legacy_task 指针。
+- 提供 Case 元数据和文件名检索、全量盘点及已审阅目录映射的无损迁移；冲突与路径风险失败关闭，应用前后哈希核验，失败撤回本次移动。
+- 初始化模板、迁移器、元数据及兼容测试同步升级。
+
+
 ## 2026-10-08 — Opinion Manager 0.4.0 / Agents Init 6.3.0 / Project Orchestrator 1.5.0 / Agent Pack 1.5.1
 
 - `project-orchestrator` 与 `agent-pack` 改为在本仓库直接维护，移除 `scripts/export_plugins.py`；原导出时的隐私扫描改为 `tests/test_public_privacy.py`，对全部已跟踪文件生效。
